@@ -16,7 +16,7 @@ app.use(cors(corsOptions));
 
 app.options('*', cors(corsOptions));
 
-const port = 3000
+
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
@@ -26,6 +26,11 @@ app.get('/', (req, res) => {
   res.send('Hello World!')
 })
 connectDb()
+
+
+const port = process.env.PORT;
+
+
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+  console.log(` Listening on port ${port}`);
+});
