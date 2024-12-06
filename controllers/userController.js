@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../Model/userModel.js'; // Adjust the import path if necessary
 import JobApplication from '../Model/jobApplicationModel.js';
