@@ -5,7 +5,7 @@ import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
 const userRouter = express.Router();
 const corsOptions = {
-    origin: 'http://localhost:5173', // Allow only your frontend's origin
+    origin: 'https://magnifyweb.netlify.app', // Allow only your frontend's origin
     credentials: true,               // Allow credentials (cookies, etc.)
     optionsSuccessStatus: 200        // For legacy browser support
   };
