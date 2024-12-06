@@ -7,7 +7,7 @@ import postRouter from './routes/postRoutes.js';
 const app = express()
 
 const corsOptions = {
-  origin: 'http://localhost:5173', // Replace with your frontend's URL
+  origin: 'https://magnifyweb.netlify.app', // Replace with your frontend's URL
   credentials: true, 
   optionsSuccessStatus: 200               // Allow credentials (cookies, etc.)
 };
