@@ -1,5 +1,5 @@
 import express from 'express';
-import signup, { addProfilePic, applyJob, getProfile, login } from '../controllers/userController.js'; // Adjust the path
+import signup, { addProfilePic, applyJob, getProfile, login, logout } from '../controllers/userController.js'; // Adjust the path
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
@@ -28,4 +28,5 @@ userRouter.post("/add-profilepic",authMiddleware, upload.single('profilePic'), a
 
 userRouter.post("/jobapplication",authMiddleware,upload.single("resume"),applyJob)
  
+userRouter.post("/logout",logout)
 export default userRouter;    

@@ -269,7 +269,7 @@ export const addProfilePic= async (req, res) => {
     console.error("profile pic", err);
       res.status(500).json({ error: 'Server error', details: err.message });
   }} 
- 
+  
 
   // get user profile
 export const getProfile = async (req, res) => {
@@ -290,6 +290,12 @@ console.log(user)
     res.status(500).send('Server error');
   }
 };  
+
+// Log out
+ export const logout= async (req, res) => {
+  res.status(200).json({ message: "User logged out successfully." });
+ }
+ 
 
 
 export default signup;   
