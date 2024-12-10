@@ -79,9 +79,10 @@ if (!content && !mediaUrl) {
     });
 
     const savedPost = await newPost.save();
+    const populatedPost = await Post.findById(savedPost._id).populate('userId', 'username profilePic');
     //res.status(201).json(savedPost);
     res.status(201).json({
-      data:savedPost,
+      data:populatedPost,
       message: "Post created",
       success : true,
       error:false, 
