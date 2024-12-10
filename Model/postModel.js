@@ -10,6 +10,8 @@ const postSchema = new mongoose.Schema(
     postType: { type: String, enum: ['Text', 'Photo', 'VoiceNote'], required: true },
     likes: { type: Number, default: 0 },
     dislikes: { type: Number, default:0 },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
     comments: [
       {
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
