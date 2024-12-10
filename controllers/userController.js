@@ -249,6 +249,9 @@ export const addProfilePic= async (req, res) => {
           //public_id: "job_applications/resume" // Optional: Specify a folder in Cloudinary
         });
         profilePicUrl = uploadResult.secure_url;
+        if (!profilePicUrl) {
+          throw new Error('Failed to upload to Cloudinary');
+        }
       } catch (uploadError) {
         console.error('Error uploading to Cloudinary:', uploadError);
         return res.status(500).json({ success: false, message: 'Profilepic upload failed' });
@@ -264,7 +267,7 @@ export const addProfilePic= async (req, res) => {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
   
-      res.status(200).json({ message: 'Profile picture updated', user });
+      res.status(200).json({ message: 'Profile picture updated', user,profilePic: profilePicUrl});
   } catch (err) {
     console.error("profile pic", err);
       res.status(500).json({ error: 'Server error', details: err.message });
