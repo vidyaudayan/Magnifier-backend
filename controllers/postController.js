@@ -98,6 +98,7 @@ if (!content && !mediaUrl) {
 export const getPosts = async (req, res) => {
   try {
     const posts = await Post.find().sort({ createdAt: -1 }).populate('userId', 'username profilePic')
+    .populate('userId', 'username profilePic')
     .populate('comments.userId', 'username')
     .populate('comments.userId', 'username profilePic'); 
     res.status(200).json(posts);
