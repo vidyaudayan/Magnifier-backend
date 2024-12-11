@@ -142,7 +142,7 @@ export const dislikePost = async (req, res) => {
 };
 
 // Add a comment
-export const addComment = async (req, res) => {
+{/*export const addComment = async (req, res) => {
   
   
   try {
@@ -168,4 +168,35 @@ export const addComment = async (req, res) => {
     console.error("Error in addComment controller:", error); 
     res.status(500).json({ message: 'Error adding comment', error });
   }
+};*/}
+
+
+export const addComment = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { postId } = req.params;
+    const { comment } = req.body;
+
+    if (!comment || typeof comment !== "string" || !comment.trim()) {
+      return res.status(400).json({ message: "Invalid comment data" });
+    }
+
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    // Add comment to the post
+    post.comments.push({ userId, comment });
+    await post.save();
+
+    // Fetch the updated post with populated user data
+    const updatedPost = await Post.findById(postId)
+      .populate('userId', 'username profilePic') // Populate post author
+      .populate('comments.userId', 'username profilePic'); // Populate comment authors
+
+    res.status(201).json(updatedPost); // Send the fully populated post
+  } catch (error) {
+    console.error("Error in addComment controller:", error);
+    res.status(500).json({ message: 'Error adding comment', error });
+  }
 };
+
