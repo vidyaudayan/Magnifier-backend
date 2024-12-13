@@ -126,7 +126,7 @@ export const likePost = async (req, res) => {
         await user.save();
     }
 
-    res.status(200).json(post);
+    res.status(200).json({ post, walletAmount: user.walletAmount });
   } catch (error) {
     res.status(500).json({ message: 'Error liking post', error });
   }
@@ -151,7 +151,7 @@ export const dislikePost = async (req, res) => {
         await user.save();
     }
 
-    res.status(200).json(post);
+    res.status(200).json({ post, walletAmount: user.walletAmount });
   } catch (error) {
     res.status(500).json({ message: 'Error disliking post', error });
   }

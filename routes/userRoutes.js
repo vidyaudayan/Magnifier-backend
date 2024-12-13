@@ -27,7 +27,7 @@ userRouter.get("/userprofile",authMiddleware, getProfile);
 userRouter.post("/add-profilepic",authMiddleware, upload.single('profilePic'), addProfilePic)
 
 userRouter.post("/jobapplication",authMiddleware,upload.single("resume"),applyJob)
-userRouter.get("/wallet",authMiddleware,initializeWallet)
+userRouter.post("/wallet",authMiddleware,initializeWallet)
 userRouter.get("/usermatrics",authMiddleware, getUserMetrics)
 userRouter.post("/logout",logout)
 export default userRouter;    
