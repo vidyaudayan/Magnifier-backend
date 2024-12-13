@@ -1,6 +1,6 @@
 import Post from '../Model/postModel.js';
 import { cloudinaryInstance } from '../config/cloudinary.js';
-
+import User from '../Model/userModel.js'
 
 
 export const createPost = async (req, res) => {
@@ -118,6 +118,14 @@ export const likePost = async (req, res) => {
     //post.likes += 1;
     post.likes = (post.likes || 0) + 1; // Ensure likes is initialized
     await post.save();
+
+    // Update wallet amount
+    const user = await User.findById(post.userId);
+    if (user) {
+        user.walletAmount += 10;
+        await user.save();
+    }
+
     res.status(200).json(post);
   } catch (error) {
     res.status(500).json({ message: 'Error liking post', error });
@@ -135,6 +143,14 @@ export const dislikePost = async (req, res) => {
    
     post.dislikes = (post.dislikes || 0) + 1; 
     await post.save();
+
+    // Update wallet amount
+    const user = await User.findById(post.userId);
+    if (user) {
+        user.walletAmount += 10;
+        await user.save();
+    }
+
     res.status(200).json(post);
   } catch (error) {
     res.status(500).json({ message: 'Error disliking post', error });
@@ -200,3 +216,38 @@ export const addComment = async (req, res) => {
   }
 };
 
+
+
+
+
+
+export const updateReactions = async (req, res) => {
+  try {
+      const { postId } = req.params;
+      const { reaction } = req.body; // 'like' or 'dislike'
+
+      const post = await Post.findById(postId);
+      if (!post) return res.status(404).json({ message: "Post not found" });
+
+      if (reaction === 'like') {
+          post.likes += 1;
+      } else if (reaction === 'dislike') {
+          post.dislikes += 1;
+      } else {
+          return res.status(400).json({ message: "Invalid reaction type" });
+      }
+
+      await post.save();
+
+      // Update wallet amount
+      const user = await User.findById(post.userId);
+      if (user) {
+          user.walletAmount += 10;
+          await user.save();
+      }
+
+      res.status(200).json({ message: "Reaction updated", post });
+  } catch (error) {
+      res.status(500).json({ message: "Error updating reactions", error });
+  }
+};

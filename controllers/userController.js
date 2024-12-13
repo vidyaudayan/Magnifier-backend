@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import User from '../Model/userModel.js'; // Adjust the import path if necessary
 import JobApplication from '../Model/jobApplicationModel.js';
 import { cloudinaryInstance } from '../config/cloudinary.js';
-
+import Post from '../Model/postModel.js';
 
 const signup = async (req, res) => {
   try {
@@ -300,5 +300,55 @@ console.log(user)
  }
  
 
+// Wallet
 
+ export const initializeWallet = async (req, res) => {
+     try {
+         const userId = req.user.id; // Assume user ID is available in the token
+         const user = await User.findById(userId);
+ 
+         if (!user) return res.status(404).json({ message: "User not found" });
+ 
+         if (user.walletAmount === 0) {
+             user.walletAmount = 100;
+             await user.save();
+         }
+ 
+         res.status(200).json({ message: "Wallet initialized", walletAmount: user.walletAmount });
+     } catch (error) {
+         res.status(500).json({ message: "Error initializing wallet", error });
+     }
+ };
+
+ // user matrics
+ export const getUserMetrics = async (req, res) => {
+  try {
+      const userId = req.user.id;
+
+      // Fetch posts by the user
+      const posts = await Post.find({ userId });
+
+      // Calculate likes, dislikes, and post count
+      const totalLikes = posts.reduce((sum, post) => sum + post.likes, 0);
+      const totalDislikes = posts.reduce((sum, post) => sum + post.dislikes, 0);
+      const postCount = posts.length;
+
+      // Update wallet amount
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      user.walletAmount += (totalLikes + totalDislikes) * 10;
+      await user.save();
+
+      res.status(200).json({
+          postCount,
+          totalLikes,
+          totalDislikes,
+          walletAmount: user.walletAmount,
+      });
+  } catch (error) {
+      res.status(500).json({ message: "Error fetching metrics", error });
+  }
+};
+ 
 export default signup;   
