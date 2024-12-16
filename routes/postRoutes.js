@@ -23,9 +23,9 @@ postRouter.post("/create",authMiddleware,upload.single("media"), createPost);
 
 postRouter.get("/", getPosts); 
 
-postRouter.patch('/:postId/like', likePost);
+postRouter.patch('/:postId/like',authMiddleware, likePost);
 
-postRouter.patch('/:postId/dislike', dislikePost);
+postRouter.patch('/:postId/dislike',authMiddleware, dislikePost);
 
 
 postRouter.post('/:postId/comment',authMiddleware, addComment);
