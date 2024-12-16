@@ -339,10 +339,7 @@ console.log(user)
       //const totalLikes = posts.reduce((sum, post) => sum + post.likes, 0);
       //const totalDislikes = posts.reduce((sum, post) => sum + post.dislikes, 0);
       
-      // Calculate total likes and dislikes made by the user on other posts
-      const totalLikes = user.reactions.filter(reaction => reaction.reactionType === 'like').length;
-      const totalDislikes = user.reactions.filter(reaction => reaction.reactionType === 'dislike').length;
-
+      
       
       const postCount = posts.length;
 
@@ -350,6 +347,12 @@ console.log(user)
       const user = await User.findById(userId);
       if (!user) return res.status(404).json({ message: "User not found" });
 
+
+      // Calculate total likes and dislikes made by the user on other posts
+      const totalLikes = user.reactions.filter(reaction => reaction.reactionType === 'like').length;
+      const totalDislikes = user.reactions.filter(reaction => reaction.reactionType === 'dislike').length;
+
+      
       user.walletAmount += (totalLikes + totalDislikes) * 10;
       await user.save();
 
