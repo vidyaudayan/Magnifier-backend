@@ -350,17 +350,17 @@ console.log(user)
 
 
         // Handle first login to add an initial wallet amount of 100
-        {/*if (user.walletAmount === 0 && user.isFirstLogin) {
+        if (user.walletAmount === 0 && user.isFirstLogin) {
           user.walletAmount = 100; // Add initial wallet amount
           user.isFirstLogin = false; // Mark that the initial login setup is complete
-      }*/}
+      }
       // Calculate the total wallet amount based on reactions
       const calculatedWalletAmount = (totalLikesOnPosts + totalDislikesOnPosts) * 10;
 
       // Update walletAmount ONLY if it differs from the calculated amount
-      if (user.walletAmount !== calculatedWalletAmount) {
-          user.walletAmount = calculatedWalletAmount;
-          await user.save();
+      if (user.walletAmount !== 100 && user.walletAmount !== calculatedWalletAmount) {
+          user.walletAmount += calculatedWalletAmount;
+         
       }
 
 
@@ -369,7 +369,7 @@ console.log(user)
       const totalDislikes = user.reactions.filter(reaction => reaction.reactionType === 'dislike').length;
 
 
-      user.walletAmount += (totalLikes + totalDislikes) * 10;
+      //user.walletAmount += (totalLikes + totalDislikes) * 10;
       await user.save();
 
       //const walletAmount = (totalLikes + totalDislikes) * 10;
