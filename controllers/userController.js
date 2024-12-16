@@ -348,6 +348,12 @@ console.log(user)
       if (!user) return res.status(404).json({ message: "User not found" });
 
 
+
+        // Handle first login to add an initial wallet amount of 100
+        if (user.walletAmount === 0 && user.isFirstLogin) {
+          user.walletAmount = 100; // Add initial wallet amount
+          user.isFirstLogin = false; // Mark that the initial login setup is complete
+      }
       // Calculate the total wallet amount based on reactions
       const calculatedWalletAmount = (totalLikesOnPosts + totalDislikesOnPosts) * 10;
 
