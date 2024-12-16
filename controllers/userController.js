@@ -204,10 +204,10 @@ console.log(req.body)
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (user.isFirstLogin) {
+    {/*if (user.isFirstLogin) {
       user.walletAmount = 100; // Set wallet to 100 for the first login
       user.isFirstLogin = false; // Mark as not the first login
-  }
+  }*/}
 
   await user.save();
  
