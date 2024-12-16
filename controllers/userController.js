@@ -336,8 +336,14 @@ console.log(user)
       const posts = await Post.find({ userId });
 
       // Calculate likes, dislikes, and post count
-      const totalLikes = posts.reduce((sum, post) => sum + post.likes, 0);
-      const totalDislikes = posts.reduce((sum, post) => sum + post.dislikes, 0);
+      //const totalLikes = posts.reduce((sum, post) => sum + post.likes, 0);
+      //const totalDislikes = posts.reduce((sum, post) => sum + post.dislikes, 0);
+      
+      // Calculate total likes and dislikes made by the user on other posts
+      const totalLikes = user.reactions.filter(reaction => reaction.reactionType === 'like').length;
+      const totalDislikes = user.reactions.filter(reaction => reaction.reactionType === 'dislike').length;
+
+      
       const postCount = posts.length;
 
       // Update wallet amount
@@ -347,11 +353,15 @@ console.log(user)
       user.walletAmount += (totalLikes + totalDislikes) * 10;
       await user.save();
 
+      //const walletAmount = (totalLikes + totalDislikes) * 10;
+
+
       res.status(200).json({
           postCount,
           totalLikes,
           totalDislikes,
           walletAmount: user.walletAmount,
+        
       });
   } catch (error) {
       res.status(500).json({ message: "Error fetching metrics", error });
