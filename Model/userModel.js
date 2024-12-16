@@ -15,6 +15,8 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
    
     walletAmount: { type: Number, default: 0 },
+    isFirstLogin: { type: Boolean, default: true },
+    reactions: [{ postId: String, reactionType: String }] ,
     resetToken: String,
     resetTokenExpiration: Date, 
     posts: [ 

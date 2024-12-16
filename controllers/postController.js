@@ -120,11 +120,12 @@ export const likePost = async (req, res) => {
     await post.save();
 
     // Update wallet amount
-    {/*const user = await User.findById(post.userId);
+  const user = await User.findById(post.userId);
     if (user) {
         user.walletAmount += 10;
+        user.reactions.push({ postId, reactionType });
         await user.save();
-    }*/}
+    }
 
     res.status(200).json({ post, walletAmount: user.walletAmount });
   } catch (error) {
@@ -148,6 +149,7 @@ export const dislikePost = async (req, res) => {
     const user = await User.findById(post.userId);
     if (user) {
         user.walletAmount += 10;
+        user.reactions.push({ postId, reactionType });
         await user.save();
     }
 

@@ -203,6 +203,13 @@ console.log(req.body)
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
+    if (user.isFirstLogin) {
+      user.walletAmount = 100; // Set wallet to 100 for the first login
+      user.isFirstLogin = false; // Mark as not the first login
+  }
+
+  await user.save();
  
     // Compare passwords
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -218,7 +225,7 @@ console.log(req.body)
     // Send success response
     res.status(200).json({
       message: "Login successful",
-      user: { id: user._id, username: user.username, profilePic: user.profilePic,},
+      user: { id: user._id, username: user.username, profilePic: user.profilePic, walletAmount: user.walletAmount },
      token // Send the token if you're using JWT
     });
   } catch (error) {
