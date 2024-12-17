@@ -430,6 +430,14 @@ export const likePost = async (req, res) => {
     const post = await Post.findById(postId);
     if (!post) return res.status(404).json({ message: "Post not found" });
 
+ // Prevent user from liking their own post
+ if (post.userId.toString() === userId) {
+  return res
+    .status(400)
+    .json({ message: "You cannot like your own post" });
+}
+
+
     // Fetch the user
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -489,6 +497,16 @@ export const dislikePost = async (req, res) => {
     // Fetch the post
     const post = await Post.findById(postId);
     if (!post) return res.status(404).json({ message: "Post not found" });
+
+ // Prevent user from liking their own post
+ if (post.userId.toString() === userId) {
+  return res
+    .status(400)
+    .json({ message: "You cannot like your own post" });
+}
+
+
+
 
     // Fetch the user
     const user = await User.findById(userId);
