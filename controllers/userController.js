@@ -4,6 +4,7 @@ import User from '../Model/userModel.js'; // Adjust the import path if necessary
 import JobApplication from '../Model/jobApplicationModel.js';
 import { cloudinaryInstance } from '../config/cloudinary.js';
 import Post from '../Model/postModel.js';
+import { sendOtpEmail } from '../config/nodeMailer.js';
 
 const signup = async (req, res) => {
   try {
