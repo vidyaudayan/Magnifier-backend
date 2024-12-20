@@ -1,5 +1,5 @@
 import express from 'express';
-import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout } from '../controllers/userController.js'; // Adjust the path
+import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP } from '../controllers/userController.js'; // Adjust the path
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
@@ -30,4 +30,7 @@ userRouter.post("/jobapplication",authMiddleware,upload.single("resume"),applyJo
 userRouter.post("/wallet",authMiddleware,initializeWallet)
 userRouter.get("/usermatrics",authMiddleware, getUserMetrics)
 userRouter.post("/logout",logout)
-export default userRouter;    
+
+userRouter.post("/send-otp",sendOTP)
+userRouter.post("/verify-otp", verifyOTP)
+  export default userRouter;    

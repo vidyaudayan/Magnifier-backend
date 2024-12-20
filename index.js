@@ -2,10 +2,11 @@ import express from 'express'
 import cors from 'cors'
 import connectDb from './config/db.js'
 import cookieParser from "cookie-parser";
+import bodyParser from 'body-parser';
 import userRouter from './routes/userRoutes.js';
 import postRouter from './routes/postRoutes.js';
 const app = express()
-
+app.use(bodyParser.json())
 const corsOptions = {
   origin: 'https://magnifyweb.netlify.app', // Replace with your frontend's URL
   credentials: true, 

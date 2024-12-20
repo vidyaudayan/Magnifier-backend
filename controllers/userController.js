@@ -336,8 +336,8 @@ console.log(user)
       const posts = await Post.find({ userId });
 
       // Calculate likes, dislikes, and post count
-      const totalLikesOnPosts = posts.reduce((sum, post) => sum + post.likes, 0);
-      const totalDislikesOnPosts = posts.reduce((sum, post) => sum + post.dislikes, 0);
+      const totalLikesOnPosts = posts.reduce((sum, post) => sum + (post.likes || 0), 0);
+      const totalDislikesOnPosts = posts.reduce((sum, post) => sum + (post.dislikes || 0), 0);
       
       
       
@@ -384,7 +384,51 @@ console.log(user)
       });
   } catch (error) {
       res.status(500).json({ message: "Error fetching metrics", error });
-  }
+  }postCount
 };
  
+
+// generate OTP
+let otpStore = {}; // Temporary store for OTPs (use Redis/DB in production)
+export const sendOTP= async (req, res) => {
+  const { email } = req.body;
+  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+
+  // Store OTP with expiration
+  otpStore[email] = { otp, expiresAt: Date.now() + 5 * 60 * 1000 }; // 5 minutes
+
+  try {
+      await sendOtpEmail(email, otp);
+      res.status(200).json({ message: "OTP sent successfully" });
+  } catch (error) {
+      res.status(500).json({ message: "Failed to send OTP", error });
+  }
+}
+
+
+// verify OTP
+
+export const verifyOTP= (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!otpStore[email]) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+  }
+
+  const { otp: storedOtp, expiresAt } = otpStore[email];
+
+  if (Date.now() > expiresAt) {
+      delete otpStore[email];
+      return res.status(400).json({ message: "OTP expired" });
+  }
+
+  if (storedOtp === otp) {
+      delete otpStore[email];
+      const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "1h" });
+      return res.status(200).json({ message: "OTP verified", token });
+  }
+
+  res.status(400).json({ message: "Invalid OTP" });
+}
+
 export default signup;   
