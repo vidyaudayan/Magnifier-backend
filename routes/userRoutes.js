@@ -6,6 +6,7 @@ import cors from 'cors'
 const userRouter = express.Router();
 const corsOptions = {
     origin: 'https://magnifyweb.netlify.app', // Allow only your frontend's origin
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,               // Allow credentials (cookies, etc.)
     optionsSuccessStatus: 200        // For legacy browser support
   };

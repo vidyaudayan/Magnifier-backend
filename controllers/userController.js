@@ -390,9 +390,13 @@ console.log(user)
  
 
 // generate OTP
-let otpStore = {}; // Temporary store for OTPs (use Redis/DB in production)
+// Temporary store for OTPs (use Redis/DB in production)
 export const sendOTP= async (req, res) => {
   const { email } = req.body;
+  let otpStore = {}; 
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+}
   const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
 
   // Store OTP with expiration
@@ -402,6 +406,7 @@ export const sendOTP= async (req, res) => {
       await sendOtpEmail(email, otp);
       res.status(200).json({ message: "OTP sent successfully" });
   } catch (error) {
+    console.error("Error sending OTP:", error);
       res.status(500).json({ message: "Failed to send OTP", error });
   }
 }
