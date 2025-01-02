@@ -480,6 +480,9 @@ export const likePost = async (req, res) => {
         : "Post liked, wallet not updated",
       post,
       walletAmount: user.walletAmount,
+      //totalLikes: post.likes,
+  //totalDislikes: post.dislikes,
+
     });
   } catch (error) {
     console.error("Error liking post:", error);
@@ -550,6 +553,9 @@ export const dislikePost = async (req, res) => {
         : "Post disliked, wallet not updated",
       post,
       walletAmount: user.walletAmount,
+      totalLikes: post.likes,
+  totalDislikes: post.dislikes,
+
     });
   } catch (error) {
     console.error("Error disliking post:", error);

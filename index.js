@@ -7,11 +7,28 @@ import userRouter from './routes/userRoutes.js';
 import postRouter from './routes/postRoutes.js';
 const app = express()
 app.use(bodyParser.json())
-const corsOptions = {
+{/*const corsOptions = {
   origin: 'https://magnifyweb.netlify.app', // Replace with your frontend's URL
   credentials: true, 
   optionsSuccessStatus: 200               // Allow credentials (cookies, etc.)
-};
+};*/}
+
+const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173'];
+
+  const corsOptions = {
+    origin: (origin, callback) => {
+      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,   
+    optionsSuccessStatus: 200 ,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
+  allowedMethods: ['GET', 'POST', 'PUT', 'DELETE'],     
+  };    
+    
  
 app.use(cors(corsOptions));
 

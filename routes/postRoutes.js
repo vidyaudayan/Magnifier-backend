@@ -5,12 +5,30 @@ import { authMiddleware, authMiddleware1 } from '../middlewares/authMiddleware.j
 import cors from 'cors'
 const postRouter = express.Router();
 postRouter.use("/post",postRouter)
-const corsOptions = {
+
+const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173'];
+
+  const corsOptions = {
+    origin: (origin, callback) => {
+      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,   
+    optionsSuccessStatus: 200 ,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
+  allowedMethods: ['GET', 'POST', 'PUT', 'DELETE'],     
+  };    
+    
+
+{/*const corsOptions = {
     origin: 'https://magnifyweb.netlify.app', // Allow only your frontend's origin
     credentials: true, 
     methods: ["GET", "POST", "PUT", "DELETE","PATCH"],              // Allow credentials (cookies, etc.)
     optionsSuccessStatus: 200        // For legacy browser support
-  };
+  };*/}
 
   postRouter.use(cors(corsOptions));
 

@@ -1,15 +1,33 @@
 import express from 'express';
-import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP } from '../controllers/userController.js'; // Adjust the path
+import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword } from '../controllers/userController.js'; // Adjust the path
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
+import { saveContact } from '../controllers/contactController.js';
 const userRouter = express.Router();
-const corsOptions = {
+const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173'];
+
+  const corsOptions = {
+    origin: (origin, callback) => {
+      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,   
+    optionsSuccessStatus: 200 ,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
+  allowedMethods: ['GET', 'POST', 'PUT', 'DELETE'],     
+  };    
+    
+
+{/*const corsOptions = {
     origin: 'https://magnifyweb.netlify.app', // Allow only your frontend's origin
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,               // Allow credentials (cookies, etc.)
     optionsSuccessStatus: 200        // For legacy browser support
-  };
+  };*/}
 
   userRouter.use(cors(corsOptions));
 
@@ -34,4 +52,11 @@ userRouter.post("/logout",logout)
 
 userRouter.post("/send-otp",sendOTP)
 userRouter.post("/verify-otp", verifyOTP)
+
+userRouter.post("/forgot-password", forgotPassword);
+
+
+userRouter.post("/reset-password", resetPassword);
+userRouter.post("/contact",upload.single("identityProof"),saveContact)
+ 
   export default userRouter;    

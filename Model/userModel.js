@@ -24,6 +24,11 @@ const userSchema = new mongoose.Schema(
           reactedAt: { type: Date, default: Date.now }                // When the reaction was made
       }
   ],
+  // OTP Fields for Email Verification
+  otp: { type: String }, // Stores the generated OTP
+  otpExpiration: { type: Date }, // OTP Expiry Time
+  isVerified: { type: Boolean, default: false }, // To check if email is verified
+
     resetToken: String,
     resetTokenExpiration: Date, 
     posts: [ 

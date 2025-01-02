@@ -4,7 +4,9 @@ import User from '../Model/userModel.js'; // Adjust the import path if necessary
 import JobApplication from '../Model/jobApplicationModel.js';
 import { cloudinaryInstance } from '../config/cloudinary.js';
 import Post from '../Model/postModel.js';
-import { sendOtpEmail } from '../config/nodeMailer.js';
+import { sendOtpEmail } from '../config/nodeMailer.js'
+import crypto from 'crypto'; 
+import nodemailer from 'nodemailer';
 
 const signup = async (req, res) => {
   try {
@@ -41,7 +43,7 @@ const signup = async (req, res) => {
       fathersName,
       age,
       gender,
-      wardNumber, vidhanSabha,
+       wardNumber: wardNumber || null, vidhanSabha,
       email,
       password: hashedPassword,
      
@@ -385,22 +387,25 @@ console.log(user)
       });
   } catch (error) {
       res.status(500).json({ message: "Error fetching metrics", error });
-  }postCount
+  }
 };
  
 
 // generate OTP
 // Temporary store for OTPs (use Redis/DB in production)
+let otpStore = {}; 
+
 export const sendOTP= async (req, res) => {
   const { email } = req.body;
-  let otpStore = {}; 
+ 
   if (!email) {
     return res.status(400).json({ message: "Email is required" });
 }
   const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-
+  //const otpExpiration = Date.now() + 10 * 60 * 1000; // Valid for 10 minutes
   // Store OTP with expiration
   otpStore[email] = { otp, expiresAt: Date.now() + 5 * 60 * 1000 }; // 5 minutes
+  console.log("Generated OTP:", otp); 
 
   try {
       await sendOtpEmail(email, otp);
@@ -415,7 +420,12 @@ export const sendOTP= async (req, res) => {
 // verify OTP
 
 export const verifyOTP= (req, res) => {
+  console.log("Request Body:", req.body); 
   const { email, otp } = req.body;
+   // Check if email and otp are provided
+   if (!email || !otp) {
+    return res.status(400).json({ message: "Email and OTP are required." });
+}
 
   if (!otpStore[email]) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
@@ -436,5 +446,152 @@ export const verifyOTP= (req, res) => {
 
   res.status(400).json({ message: "Invalid OTP" });
 }
+
+// Forgot Password Controller
+export const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+      // Check if the user exists
+      const user = await User.findOne({ email });
+      if (!user) {
+          return res.status(404).json({ message: "User not found" });
+      }
+
+      // Generate Reset Token
+      const resetToken = crypto.randomBytes(32).toString('hex'); // Random string
+      const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+      // Set the token and expiration time in the user document
+      //user.resetPasswordToken = hashedToken;
+      //user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes expiry time
+
+      user.resetToken = hashedToken;
+      user.resetTokenExpiration = Date.now() + 3600000; // 1 hour expiration
+
+      await user.save();
+
+      // Create the reset URL
+      const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+      // Send Reset Password Email
+      const transporter = nodemailer.createTransport({
+          service: 'Gmail',
+          host: "smtp.gmail.com",
+          port: 587,
+          secure: false, // Use TLS
+          auth: {
+              user: process.env.EMAIL_USERNAME, // Email username from .env
+              pass: process.env.EMAIL_PASSWORD, // Email password from .env
+          },
+          tls: {
+              rejectUnauthorized: false, // Allow self-signed certificates if needed
+          },
+      });
+
+      // Email content
+      const mailOptions = {
+          from: process.env.EMAIL_USERNAME,
+          to: email,
+          subject: 'Reset Your Password',
+          html: `
+          <p>To reset your password, click on the following link:</p>
+          <a href="${resetUrl}" target="_blank">Reset Password</a>
+      `,
+      };
+
+      // Sending the email
+      await transporter.sendMail(mailOptions);
+
+      // Return success message
+      res.status(200).json({ message: 'Password reset link sent to your email.' });
+
+  } catch (error) {
+      console.error('Error sending reset email:', error);
+      res.status(500).json({ message: 'Server error, please try again later.' });
+  }
+}
+
+// Reset password
+{/*export const resetPassword = async (req, res) => {
+  const { resetToken, newPassword } = req.body;
+  console.log(req.body);
+  if (!resetToken || !newPassword) {
+    return res.status(400).json({ message: "Missing required fields" });
+}
+
+  try {
+      // Find user with the reset token
+      const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+      const user = await User.findOne({
+          resetPasswordToken: hashedToken,
+          resetPasswordExpire: { $gt: Date.now() }, // Check if token has expired
+      });
+
+      if (!user) {
+          return res.status(400).json({ message: "Invalid or expired token" });
+      }
+
+      // Hash the new password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+      // Update the password and clear reset token
+      user.password = hashedPassword;
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+
+      await user.save();
+
+      res.status(200).json({ message: "Password reset successful" });
+  } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Server error, please try again later." });
+  }
+};*/}
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+    console.log(req.body);
+    // Validate input fields
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({ message: "Invalid request. Missing fields." });
+    }
+
+    // Hash the token received in the request
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    console.log("hash token", hashedToken);
+    // Find the user with the provided token and check if it is still valid
+    const user = await User.findOne({
+      resetToken: hashedToken,
+      resetTokenExpiration: { $gt: Date.now() }, // Token must be valid and not expired
+    });
+    console.log("user", user);
+    // If no user found, return error
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired reset token." });
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update the user with the new password and clear reset fields
+    user.password = hashedPassword;
+    user.resetToken = undefined;
+    user.resetTokenExpiration = undefined;
+
+    // Save the updated user
+    await user.save();
+
+    res.status(200).json({
+      message: "Password reset successful.",
+      success: true
+    });
+  } catch (error) {
+    console.error("Error resetting password:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+};
 
 export default signup;   
