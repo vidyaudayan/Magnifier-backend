@@ -6,7 +6,7 @@ import cors from 'cors'
 const postRouter = express.Router();
 postRouter.use("/post",postRouter)
 
-const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173'];
+const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','magnifieradmin.netlify.app'];
 
   const corsOptions = {
     origin: (origin, callback) => {
