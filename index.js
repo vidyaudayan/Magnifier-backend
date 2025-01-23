@@ -14,7 +14,7 @@ app.use(bodyParser.json())
   optionsSuccessStatus: 200               // Allow credentials (cookies, etc.)
 };*/}
 
-const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','http://localhost:5174','magnifieradmin.netlify.app'];
+const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','http://localhost:5174','https://magnifieradmin.netlify.app'];
 
   const corsOptions = {
     origin: (origin, callback) => {

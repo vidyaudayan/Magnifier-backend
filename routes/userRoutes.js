@@ -5,7 +5,7 @@ import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
 import { saveContact } from '../controllers/contactController.js';
 const userRouter = express.Router();
-const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','magnifieradmin.netlify.app'];
+const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','https://magnifieradmin.netlify.app'];
 
   const corsOptions = {
     origin: (origin, callback) => {
