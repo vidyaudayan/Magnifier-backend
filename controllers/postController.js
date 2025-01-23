@@ -3,7 +3,7 @@ import { cloudinaryInstance } from '../config/cloudinary.js';
 import User from '../Model/userModel.js'
 
 
-export const createPost = async (req, res) => {
+{/*export const createPost = async (req, res) => {
   console.log("land")
   //console.log(req)
   try {
@@ -37,7 +37,7 @@ let mediaUrl = null;
 }*/}
 
 
-if (file) {
+{/*if (file) {
   try {
     // Check the file type
     const fileType = file.mimetype.split('/')[0];
@@ -46,14 +46,16 @@ if (file) {
       // Upload as audio using Cloudinary
       const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
         folder: 'posts',
-        resource_type: 'auto', // This ensures Cloudinary determines the file type (audio, image, etc.)
+        //resource_type: 'auto', // This ensures Cloudinary determines the file type (audio, image, etc.)
+        resource_type: fileType === 'audio' ? 'video' : 'image', 
       });
       mediaUrl = uploadResult.secure_url;
     } else {
       // If not audio, handle as image or other media type
       const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
         folder: 'posts',
-        resource_type: 'auto',
+        //resource_type: 'auto',
+        resource_type: fileType === 'audio' ? 'video' : 'image', 
       });
       mediaUrl = uploadResult.secure_url;
     }
@@ -74,8 +76,12 @@ if (!content && !mediaUrl) {
       //content: postType === "Text" ? content : '',  // Store only content if text post
       
       content: postType === "Text" ? content : (postType === "Photo"||"voiceNote" && content ? content : ''),
-      mediaUrl: postType !== "Text" ? mediaUrl : '', 
-    
+      //mediaUrl: postType !== "Text" ? mediaUrl : '', 
+      
+      //content: postType === "Text" ? content : '', // Text posts will have content, others won't
+//mediaUrl: postType !== "Text" && mediaUrl ? mediaUrl : '', // Non-text posts will have mediaUrl if available
+mediaUrl: postType === "Photo" || postType === "VoiceNote" ? mediaUrl : '', 
+      status: "pending",
     });
 
     const savedPost = await newPost.save();
@@ -92,7 +98,67 @@ if (!content && !mediaUrl) {
     console.error("Error creating post:", error);
     res.status(500).json({ message: 'Error creating post', error });
   }
+};*/}
+// create post new
+export const createPost = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'Unauthorized: User ID missing' });
+    }
+
+    const file = req.file;
+    const userId = req.user.id;
+    const { postType, content } = req.body;
+
+    let mediaUrl = null;
+
+    // Handle file upload
+    if (file) {
+      try {
+        const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
+          folder: 'posts',
+          resource_type: 'auto',
+        });
+        mediaUrl = uploadResult.secure_url;
+      } catch (uploadError) {
+        console.error('Error uploading to Cloudinary:', uploadError);
+        return res.status(500).json({ success: false, message: 'Media upload failed' });
+      }
+    }
+
+    // Ensure either content or mediaUrl is provided
+    if (!content && !mediaUrl) {
+      return res.status(400).json({ message: 'Content or media is required' });
+    }
+
+    // Create a new post object
+    const newPost = new Post({
+      userId,
+      postType,
+      //content: postType === 'Text' ? content : '', // Store content for text posts
+      //mediaUrl: postType !== 'Text' ? mediaUrl : '', // Store mediaUrl for non-text posts
+      content: content || '',
+  mediaUrl: mediaUrl || '', 
+      
+      status: 'pending',
+    });
+
+    // Save to database and populate fields
+    const savedPost = await newPost.save();
+    const populatedPost = await Post.findById(savedPost._id).populate('userId', 'username profilePic');
+
+    res.status(201).json({
+      data: populatedPost,
+      message: 'Post created successfully',
+      success: true,
+      error: false,
+    });
+  } catch (error) {
+    console.error('Error creating post:', error);
+    res.status(500).json({ message: 'Error creating post', error });
+  }
 };
+
 
 // Fetch posts
 export const getPosts = async (req, res) => {
@@ -556,6 +622,149 @@ export const dislikePost = async (req, res) => {
       totalLikes: post.likes,
   totalDislikes: post.dislikes,
 
+    });
+  } catch (error) {
+    console.error("Error disliking post:", error);
+    res.status(500).json({ message: "Error disliking post", error });
+  }
+};
+
+
+// new post owner 
+export const likePosts = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    // Fetch the post
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    // Prevent user from liking their own post
+    if (post.userId.toString() === userId) {
+      return res.status(400).json({ message: "You cannot like your own post" });
+    }
+
+    // Fetch the user who liked the post
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Fetch the post owner
+    const postOwner = await User.findById(post.userId);
+    if (!postOwner) return res.status(404).json({ message: "Post owner not found" });
+
+    // Check for an existing reaction
+    const existingReactionIndex = user.reactions.findIndex(
+      (reaction) => reaction.postId.toString() === postId
+    );
+
+    let walletIncremented = false;
+
+    if (existingReactionIndex >= 0) {
+      // If user already reacted to the post
+      const existingReaction = user.reactions[existingReactionIndex];
+
+      if (existingReaction.reactionType === "dislike") {
+        // If changing from dislike to like, update reactionType and update counts
+        existingReaction.reactionType = "like";
+        post.dislikes = Math.max(0, post.dislikes - 1); // Decrease dislikes
+        post.likes += 1; // Increase likes
+      } else {
+        // Already liked; no action needed
+        return res.status(400).json({ message: "You already liked this post" });
+      }
+    } else {
+      // First time reacting to the post
+      user.reactions.push({ postId, reactionType: "like" });
+      post.likes += 1; // Increment likes
+
+      // Increment wallet balance of post owner
+      postOwner.walletAmount += 10;
+      walletIncremented = true;
+    }
+
+    // Save the changes
+    await post.save();
+    await user.save();
+    await postOwner.save();
+
+    res.status(200).json({
+      message: walletIncremented
+        ? "Post liked, post owner's wallet updated"
+        : "Post liked, wallet not updated",
+      post,
+      walletAmount: user.walletAmount,
+    });
+  } catch (error) {
+    console.error("Error liking post:", error);
+    res.status(500).json({ message: "Error liking post", error });
+  }
+};
+
+
+export const dislikePosts = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    // Fetch the post
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    // Prevent user from disliking their own post
+    if (post.userId.toString() === userId) {
+      return res.status(400).json({ message: "You cannot dislike your own post" });
+    }
+
+    // Fetch the user who disliked the post
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Fetch the post owner
+    const postOwner = await User.findById(post.userId);
+    if (!postOwner) return res.status(404).json({ message: "Post owner not found" });
+
+    // Check for an existing reaction
+    const existingReactionIndex = user.reactions.findIndex(
+      (reaction) => reaction.postId.toString() === postId
+    );
+
+    let walletIncremented = false;
+
+    if (existingReactionIndex >= 0) {
+      // If user already reacted to the post
+      const existingReaction = user.reactions[existingReactionIndex];
+
+      if (existingReaction.reactionType === "like") {
+        // If changing from like to dislike, update reactionType and update counts
+        existingReaction.reactionType = "dislike";
+        post.likes = Math.max(0, post.likes - 1); // Decrease likes
+        post.dislikes += 1; // Increase dislikes
+      } else {
+        // Already disliked; no action needed
+        return res.status(400).json({ message: "You already disliked this post" });
+      }
+    } else {
+      // First time reacting to the post
+      user.reactions.push({ postId, reactionType: "dislike" });
+      post.dislikes += 1; // Increment dislikes
+
+      // Increment wallet balance of post owner
+      postOwner.walletAmount += 10;
+      walletIncremented = true;
+    }
+
+    // Save the changes
+    await post.save();
+    await user.save();
+    await postOwner.save();
+
+    res.status(200).json({
+      message: walletIncremented
+        ? "Post disliked, post owner's wallet updated"
+        : "Post disliked, wallet not updated",
+      post,
+      walletAmount: user.walletAmount,
     });
   } catch (error) {
     console.error("Error disliking post:", error);

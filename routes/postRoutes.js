@@ -1,5 +1,5 @@
 import express from 'express';
-import { createPost,getPosts,likePost,dislikePost,addComment } from '../controllers/postController.js';
+import { createPost,getPosts,likePosts,dislikePosts,addComment } from '../controllers/postController.js';
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware, authMiddleware1 } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
@@ -42,11 +42,11 @@ postRouter.post("/create",authMiddleware,upload.single("media"), createPost);
 
 postRouter.get("/", getPosts); 
 
-postRouter.patch('/:postId/like',authMiddleware, likePost);
+postRouter.patch('/:postId/like',authMiddleware, likePosts);
 
-postRouter.patch('/:postId/dislike',authMiddleware, dislikePost);
+postRouter.patch('/:postId/dislike',authMiddleware, dislikePosts);
 
 
 postRouter.post('/:postId/comment',authMiddleware, addComment);
 
-export default postRouter;      
+export default postRouter; 

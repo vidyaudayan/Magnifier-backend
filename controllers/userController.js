@@ -295,7 +295,7 @@ console.log(user)
     }
 
     res.status(200).json({
-     username: user.username, profilePic: user.profilePic 
+     username: user.username, profilePic: user.profilePic, email:user.email 
      
     });
   } catch (error) {
@@ -303,6 +303,38 @@ console.log(user)
     res.status(500).send('Server error');
   }
 };  
+
+// Get user posts
+
+export const getUserPosts = async (req, res) => {
+  try {
+    // Ensure the user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized: User ID missing" });
+    }
+
+    // Get the logged-in user's ID
+    const userId = req.user.id;
+
+    // Fetch all posts created by the user
+    const userPosts = await Post.find({ userId }).sort({ createdAt: -1 }); // Sort by most recent
+
+    // If no posts found, return an appropriate message
+    if (!userPosts.length) {
+      return res.status(404).json({ message: "No posts found for this user" });
+    }
+
+    // Respond with the user's posts
+    res.status(200).json({
+      success: true,
+      data: userPosts,
+      message: "User posts fetched successfully",
+    });
+  } catch (error) {
+    console.error("Error fetching user posts:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch user posts", error });
+  }
+};
 
 // Log out
  export const logout= async (req, res) => {

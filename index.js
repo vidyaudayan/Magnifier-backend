@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import bodyParser from 'body-parser';
 import userRouter from './routes/userRoutes.js';
 import postRouter from './routes/postRoutes.js';
+import adminRouter from './routes/adminRoutes.js'
 const app = express()
 app.use(bodyParser.json())
 {/*const corsOptions = {
@@ -13,7 +14,7 @@ app.use(bodyParser.json())
   optionsSuccessStatus: 200               // Allow credentials (cookies, etc.)
 };*/}
 
-const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173'];
+const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','http://localhost:5174'];
 
   const corsOptions = {
     origin: (origin, callback) => {
@@ -40,6 +41,7 @@ app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
 app.use('/api/v1/user',userRouter)
 app.use('/api/v1/post',postRouter)
+app.use('/api/v1/admin',adminRouter)
 app.get('/', (req, res) => {
   res.send('Hello World!')
 })

@@ -1,0 +1,46 @@
+import express from 'express';
+
+import cors from 'cors'
+import { adminSingin, adminSingup, approvePost, fetchPendingPosts, RejectPost, updatePostStatus } from '../controllers/adminController.js';
+import { logout } from '../controllers/userController.js';
+
+const adminRouter = express.Router();
+adminRouter.use("/admin",adminRouter)
+
+const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','http://localhost:5174'];
+
+  const corsOptions = {
+    origin: (origin, callback) => {
+      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,   
+    optionsSuccessStatus: 200 ,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
+  allowedMethods: ['GET', 'POST', 'PUT', 'DELETE'],     
+  };    
+    
+
+{/*const corsOptions = {
+    origin: 'https://magnifyweb.netlify.app', // Allow only your frontend's origin
+    credentials: true, 
+    methods: ["GET", "POST", "PUT", "DELETE","PATCH"],              // Allow credentials (cookies, etc.)
+    optionsSuccessStatus: 200        // For legacy browser support
+  };*/}
+
+  adminRouter.use(cors(corsOptions));
+
+adminRouter.use(express.json());
+adminRouter.options('*', cors(corsOptions));
+
+adminRouter.post("/signup",adminSingup)
+adminRouter.post("/signin",adminSingin)
+adminRouter.get("/pending", fetchPendingPosts)
+adminRouter.patch("/approve/:id",approvePost)
+adminRouter.patch("/reject/:id",RejectPost)
+adminRouter.post("/updatepoststatus", updatePostStatus)
+adminRouter.post("/logout",logout)
+export default adminRouter
