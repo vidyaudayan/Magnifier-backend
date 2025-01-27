@@ -1,5 +1,5 @@
 import express from 'express';
-import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts } from '../controllers/userController.js'; // Adjust the path
+import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic} from '../controllers/userController.js'; // Adjust the path
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
@@ -44,6 +44,8 @@ userRouter.get("/userprofile",authMiddleware, getProfile);
 
 
 userRouter.post("/add-profilepic",authMiddleware, upload.single('profilePic'), addProfilePic)
+userRouter.post("/add-coverpic",authMiddleware, upload.single('coverPic'), addCoverPic)
+
 userRouter.get("/userPosts",authMiddleware,getUserPosts)
 userRouter.post("/jobapplication",authMiddleware,upload.single("resume"),applyJob)
 userRouter.post("/wallet",authMiddleware,initializeWallet)
@@ -55,6 +57,8 @@ userRouter.post("/verify-otp", verifyOTP)
 
 userRouter.post("/forgot-password", forgotPassword);
 
+userRouter.get("/search",userSearch)
+userRouter.get("/posts/:userId", getSearchedUserPosts);
 
 userRouter.post("/reset-password", resetPassword);
 userRouter.post("/contact",upload.single("identityProof"),saveContact)

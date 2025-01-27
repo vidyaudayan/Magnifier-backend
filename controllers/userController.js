@@ -295,7 +295,7 @@ console.log(user)
     }
 
     res.status(200).json({
-     username: user.username, profilePic: user.profilePic, email:user.email 
+     username: user.username, profilePic: user.profilePic, email:user.email,coverPic:user.coverPic
      
     });
   } catch (error) {
@@ -625,5 +625,98 @@ export const resetPassword = async (req, res) => {
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 };
+
+
+
+// search users
+
+export const userSearch= async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query) {
+      return res.status(400).json({ success: false, message: 'Search query is required' });
+    }
+
+    const users = await User.find({ 
+      username: { $regex: query, $options: 'i' } // Case-insensitive search
+    }).select('username profilePic'); // Return only required fields
+
+    res.status(200).json({ success: true, data: users });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+}
+
+// get posts of searched user
+
+export const getSearchedUserPosts = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "User ID is required" });
+    }
+
+    const posts = await Post.find({  userId }).sort({ createdAt: -1 }); // Adjust sorting if needed
+    if (!posts.length) {
+      return res.status(200).json({ success: true, data: [] }); // No posts found
+    } 
+    
+    res.status(200).json({ success: true, data: posts });
+  } catch (error) {
+    console.error('Error fetching user posts:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+
+// cover pic
+
+export const addCoverPic= async (req, res) => {
+  const  userId  = req.user.id;
+  const file = req.file 
+  if (!file) {
+    return res.status(400).json({ success: false, message: 'No file provided' });
+  }
+
+  try {
+
+    // Handle file upload
+    let coverPicUrl = null;
+    if (file) {
+      try {
+        const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
+          folder: 'coverPics',
+         // resource_type: "raw",
+          access_mode: "public"
+          //public_id: "job_applications/resume" // Optional: Specify a folder in Cloudinary
+        });
+        coverPicUrl = uploadResult.secure_url;
+        if (!coverPicUrl) {
+          throw new Error('Failed to upload to Cloudinary');
+        }
+      } catch (uploadError) {
+        console.error('Error uploading to Cloudinary:', uploadError);
+        return res.status(500).json({ success: false, message: 'Coverpic upload failed' });
+      }
+    }
+      const user = await User.findByIdAndUpdate(
+          userId,
+          { coverPic: coverPicUrl },
+          { new: true }
+      );
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+  
+      res.status(200).json({ message: 'Cover picture updated', user,coverPic: coverPicUrl});
+  } catch (err) {
+    console.error("profile pic", err);
+      res.status(500).json({ error: 'Server error', details: err.message });
+  }} 
+  
+
 
 export default signup;   

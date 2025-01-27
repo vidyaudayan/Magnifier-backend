@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     username: { type: String, required: true },
     profilePic: { type: String, default: "" },
+    coverPic: { type: String, default: "" },
     fathersName: { type: String },
     age: { type: Number, required: true },
     gender: { type: String, enum: ['Male', 'Female', 'Other', 'male', 'female', 'other'] },
