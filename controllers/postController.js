@@ -771,3 +771,23 @@ export const dislikePosts = async (req, res) => {
     res.status(500).json({ message: "Error disliking post", error });
   }
 };
+
+
+export const getPostById = async (req, res) => {
+  try {
+    const { id } = req.params; // Get the post ID from the request parameters
+
+    // Fetch the post from the database
+    const post = await Post.findById(id);
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Return the post data
+    res.status(200).json({ success: true, data: post });
+  } catch (error) {
+    console.error('Error fetching post:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
