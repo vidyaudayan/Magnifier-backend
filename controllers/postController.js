@@ -776,9 +776,9 @@ export const dislikePosts = async (req, res) => {
 export const getPostById = async (req, res) => {
   try {
     const { id } = req.params; // Get the post ID from the request parameters
-
+    console.log("postbyId")
     // Fetch the post from the database
-    const post = await Post.findById(id);
+    const post = await Post.findOne({ _id: id });
 
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
