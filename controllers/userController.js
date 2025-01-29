@@ -150,10 +150,16 @@ export const applyJob = async (req, res) => {
     //const { voterCardNumber, aadhaarNumber, experience, qualification } = req.body;
     const { username,experience, qualification } = parsedDetails;
     const file = req.file;
-    const userId = req.user.id
+    //const userId = req.user.id
     console.log("req.body:", req);
 console.log("req.file:", req.file);
-console.log("req.user:", req.user);
+
+ // Verify if username exists in the database
+ const existingUser = await User.findOne({ username });
+ if (!existingUser) {
+   return res.status(400).json({ success: false, message: 'Invalid username. Please sign up.' });
+ }
+
 
     // Validate the presence of required fields
 {/*if (!userId || !voterCardNumber || !aadhaarNumber || !experience || !qualification) {
@@ -179,7 +185,7 @@ console.log("req.user:", req.user);
 
     // Save job application
     const jobApplication = new JobApplication({
-      userId,
+      userId: existingUser._id,
       username,
       experience,
       qualification,
