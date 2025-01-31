@@ -664,12 +664,12 @@ export const getSearchedUserPosts = async (req, res) => {
       return res.status(400).json({ success: false, message: "User ID is required" });
     }
 
-    const posts = await Post.find({  userId }).sort({ createdAt: -1 }); // Adjust sorting if needed
+    const posts = await Post.find({  userId }).populate('userId', 'username profilePic').sort({ createdAt: -1 }); // Adjust sorting if needed
     if (!posts.length) {
       return res.status(200).json({ success: true, data: [] }); // No posts found
     } 
-    
-    res.status(200).json({ success: true, data: posts });
+    const user = await User.findById(userId).select("username profilePic");
+    res.status(200).json({ success: true, data: posts ,user});
   } catch (error) {
     console.error('Error fetching user posts:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
