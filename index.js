@@ -6,6 +6,7 @@ import bodyParser from 'body-parser';
 import userRouter from './routes/userRoutes.js';
 import postRouter from './routes/postRoutes.js';
 import adminRouter from './routes/adminRoutes.js'
+import { cleanupInactiveUsers } from './jobs/cleanupInactiveUsers.js';
 const app = express()
 app.use(bodyParser.json())
 {/*const corsOptions = {
@@ -29,8 +30,8 @@ const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173'
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
   allowedMethods: ['GET', 'POST', 'PUT', 'DELETE'],     
   };    
-    
- 
+     
+       
 app.use(cors(corsOptions));
 
 app.options('*', cors(corsOptions));
@@ -50,7 +51,8 @@ connectDb()
 
 const port = process.env.PORT;
 
+cleanupInactiveUsers();
 
 app.listen(port, () => {
   console.log(` Listening on port ${port}`);
-});
+});   

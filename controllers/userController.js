@@ -7,7 +7,13 @@ import Post from '../Model/postModel.js';
 import { sendOtpEmail } from '../config/nodeMailer.js'
 import crypto from 'crypto'; 
 import nodemailer from 'nodemailer';
+import twilio from 'twilio'
+import dotenv from 'dotenv';
+dotenv.config();
 
+const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
+const otpMap = new Map();
 const signup = async (req, res) => {
   try {
     const {
@@ -323,7 +329,10 @@ export const getUserPosts = async (req, res) => {
     const userId = req.user.id;
 
     // Fetch all posts created by the user
-    const userPosts = await Post.find({ userId }).sort({ createdAt: -1 }); // Sort by most recent
+    const userPosts = await Post.find({ userId }).sort({ createdAt: -1 }).populate({
+      path: 'comments.userId',
+      select: 'username profilePic', // Fetch only required fields
+    }); // Sort by most recent
 
     // If no posts found, return an appropriate message
     if (!userPosts.length) {
@@ -665,10 +674,14 @@ export const getSearchedUserPosts = async (req, res) => {
     }
 
     const posts = await Post.find({  userId }).populate('userId', 'username profilePic').sort({ createdAt: -1 }); // Adjust sorting if needed
-    if (!posts.length) {
-      return res.status(200).json({ success: true, data: [] }); // No posts found
-    } 
+   
     const user = await User.findById(userId).select("username profilePic");
+    if (!posts.length) {
+      return res.status(200).json({ success: true, data: [],user}); // No posts found
+    } 
+   
+   
+   
     res.status(200).json({ success: true, data: posts ,user});
   } catch (error) {
     console.error('Error fetching user posts:', error);
@@ -723,6 +736,85 @@ export const addCoverPic= async (req, res) => {
       res.status(500).json({ error: 'Server error', details: err.message });
   }} 
   
+
+  // send mobile otp
+
+  const normalizePhoneNumber = (phoneNumber) => {
+    phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
+  return phoneNumber.startsWith('91') ? `+${phoneNumber}` : `+91${phoneNumber}`;
+  };
+
+  export const sendMobileOtp= (req, res) => {
+    console.log('Request body:', req.body); // Debugging log
+    let { phoneNumber } = req.body;
+    phoneNumber = normalizePhoneNumber(phoneNumber);
+    if (!phoneNumber) return res.status(400).json({ error: 'Phone number is required' });
+  
+
+    // Ensure it's in E.164 format for Twilio
+    const formattedPhoneNumber = `+91${phoneNumber}`;
+    console.log("Sending OTP to:", formattedPhoneNumber);
+  
+
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpMap.set(phoneNumber, otp);
+    console.log(`Generated OTP for ${phoneNumber}: ${otp}`);
+  
+    client.messages
+      .create({
+        body: `Your OTP is ${otp}`,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to: phoneNumber
+      })
+      .then(() => res.json({ message: 'OTP sent successfully' }))
+      .catch(err => res.status(500).json({ error: err.message }));
+  };
+ 
+// verify mobile otp
+
+export const verifyMobileOtp= (req, res) => {
+  let { phoneNumber, otp } = req.body;
+  phoneNumber = normalizePhoneNumber(phoneNumber);
+  console.log("verify req",req.body)
+  if (!phoneNumber || !otp) {
+    return res.status(400).json({ error: 'Phone number and OTP are required' });
+  }
+
+  const storedOtp = otpMap.get(phoneNumber);
+  console.log(`Stored OTP for ${phoneNumber}: ${storedOtp}`);
+
+
+  if (storedOtp && storedOtp === otp) {
+    otpMap.delete(phoneNumber);
+    return res.json({ message: 'OTP verified successfully' });
+  }
+
+  res.status(400).json({ error: 'Invalid OTP' });
+};
+
+// Deactivate account
+
+export const deactivateUserAccount = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isActive: false, deactivatedAt: new Date() },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ message: 'User account deactivated successfully', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deactivating user account', error });
+  }
+};
+
 
 
 export default signup;   

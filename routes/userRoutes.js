@@ -1,5 +1,5 @@
 import express from 'express';
-import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic} from '../controllers/userController.js'; // Adjust the path
+import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic, sendMobileOtp, verifyMobileOtp} from '../controllers/userController.js'; // Adjust the path
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
@@ -54,6 +54,9 @@ userRouter.post("/logout",logout)
 
 userRouter.post("/send-otp",sendOTP)
 userRouter.post("/verify-otp", verifyOTP)
+
+userRouter.post("/send-mobileotp",sendMobileOtp)
+userRouter.post("/verify-mobileotp", verifyMobileOtp)
 
 userRouter.post("/forgot-password", forgotPassword);
 

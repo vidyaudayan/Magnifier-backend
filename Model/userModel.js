@@ -12,8 +12,15 @@ const userSchema = new mongoose.Schema(
     gender: { type: String, enum: ['Male', 'Female', 'Other', 'male', 'female', 'other'] },
     vidhanSabha: { type: String },
     wardNumber: { type: Number },
+    //phoneNumber: { type: String, required: true, unique: true }, // Add phone number field
+    //isPhoneVerified: { type: Boolean, default: false }, // Status for mobile verification
+    //phoneOtp: { type: String }, // Stores the generated mobile OTP
+    //phoneOtpExpiration: { type: Date }, // Expiration for mobile OTP
+
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    isActive: { type: Boolean, default: true },
+  deactivatedAt: { type: Date, default: null }, 
    
     walletAmount: { type: Number, default: 0 },
     isFirstLogin: { type: Boolean, default: true },
