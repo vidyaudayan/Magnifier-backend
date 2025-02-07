@@ -1,5 +1,5 @@
 import express from 'express';
-import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic, sendMobileOtp, verifyMobileOtp} from '../controllers/userController.js'; // Adjust the path
+import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic, sendMobileOtp, verifyMobileOtp, deactivateUserAccount} from '../controllers/userController.js'; // Adjust the path
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
@@ -66,4 +66,6 @@ userRouter.get("/posts/:userId", getSearchedUserPosts);
 userRouter.post("/reset-password", resetPassword);
 userRouter.post("/contact",upload.single("identityProof"),saveContact)
  
-  export default userRouter;    
+
+userRouter.patch("/deactivateaccount",authMiddleware, deactivateUserAccount)
+  export default userRouter;      

@@ -1,10 +1,10 @@
 
 import cron from "node-cron"
-
+import User from "../Model/userModel.js";
 
 export const cleanupInactiveUsers = async () => {
   const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
-
+  //const THIRTY_DAYS_IN_MS = 1 * 60 * 1000
   try {
     const now = new Date();
     const deletionThreshold = new Date(now - THIRTY_DAYS_IN_MS);
@@ -20,6 +20,6 @@ export const cleanupInactiveUsers = async () => {
     console.error('Error cleaning up inactive users:', error);
   }
 };
-
+ 
 // Schedule the cleanup job to run daily at midnight
 cron.schedule('0 0 * * *', cleanupInactiveUsers);

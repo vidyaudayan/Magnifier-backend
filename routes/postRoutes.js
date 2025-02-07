@@ -1,5 +1,5 @@
 import express from 'express';
-import { createPost,getPosts,likePosts,dislikePosts,addComment ,getPostById} from '../controllers/postController.js';
+import { createPost,getPosts,likePosts,dislikePosts,addComment ,getPostById, deletePost} from '../controllers/postController.js';
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware, authMiddleware1 } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
@@ -49,4 +49,5 @@ postRouter.get('/:id', getPostById);
 
 postRouter.post('/:postId/comment',authMiddleware, addComment);
 
-export default postRouter; 
+postRouter.delete('/delete/:postId',authMiddleware, deletePost);
+export default postRouter;   

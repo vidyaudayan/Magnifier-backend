@@ -791,3 +791,25 @@ export const getPostById = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
+// delete post 
+
+export const deletePost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    // Check if the post exists
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    // Perform deletion
+    await post.deleteOne();
+
+    res.status(200).json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

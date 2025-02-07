@@ -797,7 +797,7 @@ export const verifyMobileOtp= (req, res) => {
 
 export const deactivateUserAccount = async (req, res) => {
   const userId = req.user.id;
-
+console.log("deactivate",userId)
   try {
     const user = await User.findByIdAndUpdate(
       userId,
@@ -807,7 +807,7 @@ export const deactivateUserAccount = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
-    }
+    }        
 
     res.status(200).json({ message: 'User account deactivated successfully', user });
   } catch (error) {
