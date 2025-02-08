@@ -804,6 +804,12 @@ export const deletePost = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' });
     }
 
+// Check if the authenticated user is the post owner
+if (post.userId.toString() !== req.user.id) {
+  return res.status(403).json({ message: 'You do not have permission to delete this post' });
+}
+
+
     // Perform deletion
     await post.deleteOne();
 
