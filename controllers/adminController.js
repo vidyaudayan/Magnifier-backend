@@ -1,6 +1,7 @@
 import Post from "../Model/postModel.js";
 import Admin from "../Model/adminModel.js"
 import bcrypt from "bcrypt";
+import { sendNotificationEmail } from "../config/notifications.js";
 import { adminToken } from "../utils/generateToken.js";
 // Admin signup
 export const adminSingup = async (req, res) => {
@@ -94,6 +95,10 @@ export const fetchPendingPosts= async (req, res) => {
 export const approvePost= async (req, res) => {
     try {
       const post = await Post.findByIdAndUpdate(req.params.id, { status: 'approved' }, { new: true });
+      
+      
+      
+      
       res.json(post);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -126,6 +131,11 @@ export const RejectPost= async (req, res) => {
         if (!updatedPost) {
             return res.status(404).json({ message: "Post not found" });
         }
+
+        // Send post approval notification
+    
+        await sendNotificationEmail(user.email, " Post status update", `Hi, Your post "${user._id}" is ${status}`);
+      
         res.status(200).json({ message: `Post ${status}`, success: true });
     } catch (error) {
         console.error("Error updating post status:", error);

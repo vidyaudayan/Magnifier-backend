@@ -1,104 +1,9 @@
 import Post from '../Model/postModel.js';
 import { cloudinaryInstance } from '../config/cloudinary.js';
 import User from '../Model/userModel.js'
+import { sendNotificationEmail } from '../config/notifications.js';
 
 
-{/*export const createPost = async (req, res) => {
-  console.log("land")
-  //console.log(req)
-  try {
-
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: 'Unauthorized: User ID missing' });
-    }
-    const file = req.file;
-    const userId = req.user.id
-    const {  postType, content } = req.body;
-    console.log("content",content)
-    console.log("User ID:", userId);
-    //console.log("Request Body:", req.body);
-    console.log("Uploaded File:", req.file);
- 
-// Handle file upload
-let mediaUrl = null;
-{/*if (file) {
-  try {
-    const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
-      folder: 'posts',
-      resource_type: "auto",
-      //access_mode: "public"
-      //public_id: "job_applications/resume" // Optional: Specify a folder in Cloudinary
-    });
-    mediaUrl = uploadResult.secure_url;
-  } catch (uploadError) {
-    console.error('Error uploading to Cloudinary:', uploadError);
-    return res.status(500).json({ success: false, message: 'Media upload failed' });
-  }
-}*/}
-
-
-{/*if (file) {
-  try {
-    // Check the file type
-    const fileType = file.mimetype.split('/')[0];
-
-    if (fileType === 'audio') {
-      // Upload as audio using Cloudinary
-      const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
-        folder: 'posts',
-        //resource_type: 'auto', // This ensures Cloudinary determines the file type (audio, image, etc.)
-        resource_type: fileType === 'audio' ? 'video' : 'image', 
-      });
-      mediaUrl = uploadResult.secure_url;
-    } else {
-      // If not audio, handle as image or other media type
-      const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
-        folder: 'posts',
-        //resource_type: 'auto',
-        resource_type: fileType === 'audio' ? 'video' : 'image', 
-      });
-      mediaUrl = uploadResult.secure_url;
-    }
-  } catch (uploadError) {
-    console.error('Error uploading to Cloudinary:', uploadError);
-    return res.status(500).json({ success: false, message: 'Media upload failed' });
-  }
-}
-// If a file is uploaded, get its URL from Cloudinary
-//const mediaUrl = req.file ? req.file.path : null;
-if (!content && !mediaUrl) {
-  return res.status(400).json({ message: "Content or media is required" });
-}
-    const newPost = new Post({
-      userId,
-      postType,
-      //content: postType === "Text" ? content : mediaUrl, 
-      //content: postType === "Text" ? content : '',  // Store only content if text post
-      
-      content: postType === "Text" ? content : (postType === "Photo"||"voiceNote" && content ? content : ''),
-      //mediaUrl: postType !== "Text" ? mediaUrl : '', 
-      
-      //content: postType === "Text" ? content : '', // Text posts will have content, others won't
-//mediaUrl: postType !== "Text" && mediaUrl ? mediaUrl : '', // Non-text posts will have mediaUrl if available
-mediaUrl: postType === "Photo" || postType === "VoiceNote" ? mediaUrl : '', 
-      status: "pending",
-    });
-
-    const savedPost = await newPost.save();
-    const populatedPost = await Post.findById(savedPost._id).populate('userId', 'username profilePic');
-    //res.status(201).json(savedPost);
-    res.status(201).json({
-      data:populatedPost,
-      message: "Post created",
-      success : true,
-      error:false, 
-     
-    });
-  } catch (error) {
-    console.error("Error creating post:", error);
-    res.status(500).json({ message: 'Error creating post', error });
-  }
-};*/}
 // create post new
 export const createPost = async (req, res) => {
   try {
@@ -109,7 +14,7 @@ export const createPost = async (req, res) => {
     const file = req.file;
     const userId = req.user.id;
     const { postType, content } = req.body;
-
+    const user = await User.findOne({ username });
     let mediaUrl = null;
 
     // Handle file upload
@@ -146,6 +51,13 @@ export const createPost = async (req, res) => {
     // Save to database and populate fields
     const savedPost = await newPost.save();
     const populatedPost = await Post.findById(savedPost._id).populate('userId', 'username profilePic');
+
+// Send post create notification
+if (user.email) {
+  await sendNotificationEmail(user.email, "New Post", `Hi, Your post "${user._id}" will review by admin before publishing in the website.`);
+}
+
+
 
     res.status(201).json({
       data: populatedPost,
