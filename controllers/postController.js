@@ -14,8 +14,16 @@ export const createPost = async (req, res) => {
     const file = req.file;
     const userId = req.user.id;
     const { postType, content } = req.body;
-    const user = await User.findOne({ username });
-    let mediaUrl = null;
+   // const user = await User.findOne({ username });
+   
+   // Fetch user by ID
+   const user = await User.findById(userId);
+   if (!user) {
+     return res.status(404).json({ message: 'User not found' });
+   }
+
+   
+   let mediaUrl = null;
 
     // Handle file upload
     if (file) {
@@ -54,7 +62,7 @@ export const createPost = async (req, res) => {
 
 // Send post create notification
 if (user.email) {
-  await sendNotificationEmail(user.email, "New Post", `Hi, Your post "${user._id}" will review by admin before publishing in the website.`);
+  await sendNotificationEmail(user.email, "New Post", `Hi, Your post "${savedPost._id}" will be reviewed by the admin before publishing on the website.`);
 }
 
 
