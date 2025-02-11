@@ -46,7 +46,7 @@ app.use('/api/v1/admin',adminRouter)
 app.get('/', (req, res) => {
   res.send('Hello World!')
 })
-connectDb()
+connectDb() 
 
 
 const port = process.env.PORT;

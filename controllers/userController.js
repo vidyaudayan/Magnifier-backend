@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import twilio from 'twilio'
 import dotenv from 'dotenv';
+import { sendNotificationEmail } from '../config/notifications.js';
 dotenv.config();
 
 const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
@@ -235,7 +236,10 @@ console.log(req.body)
     // Generate a JWT (optional, for session management)
     const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET, {
       expiresIn: "1h",
-    });
+    }); 
+
+    // Send login notification
+    await sendNotificationEmail(email, "Login Alert", `Hi, you logged in successfully at ${new Date()}.`);
 
     // Send success response
     res.status(200).json({
