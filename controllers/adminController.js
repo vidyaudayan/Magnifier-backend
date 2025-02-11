@@ -127,15 +127,19 @@ export const RejectPost= async (req, res) => {
             postId,
             { status },
             { new: true }
-        );
+        ).populate('userId', 'email');;
         if (!updatedPost) {
             return res.status(404).json({ message: "Post not found" });
         }
 
-        // Send post approval notification
-    
-        await sendNotificationEmail(user.email, " Post status update", `Hi, Your post "${user._id}" is ${status}`);
-      
+         // Ensure the user exists before sending the notification
+    if (updatedPost.userId && updatedPost.userId.email) {
+      await sendNotificationEmail(
+        updatedPost.userId.email,
+        "Post Status Update",
+        `Hi, Your post "${updatedPost._id}" has been ${status}.`
+      );
+    }
         res.status(200).json({ message: `Post ${status}`, success: true });
     } catch (error) {
         console.error("Error updating post status:", error);
