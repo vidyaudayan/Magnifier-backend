@@ -239,7 +239,9 @@ console.log(req.body)
     }); 
 
     // Send login notification
-    await sendNotificationEmail(email, "Login Alert", `Hi, you logged in successfully at ${new Date()}.`);
+    if (user.email) {
+      await sendNotificationEmail(user.email, "Login Alert", `Hi, you logged in successfully at ${new Date()}.`);
+    }
 
     // Send success response
     res.status(200).json({
