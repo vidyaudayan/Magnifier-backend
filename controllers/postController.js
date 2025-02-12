@@ -740,9 +740,9 @@ export const getPostById = async (req, res) => {
     //const post = await Post.findOne({ _id: id });
 
     // Validate ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    {/*if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: "Invalid post ID format" });
-    }
+    }*/}
 
     // Fetch the post from DB
     const post = await Post.findById(id);
