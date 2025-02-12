@@ -460,6 +460,16 @@ export const likePost = async (req, res) => {
     await post.save();
     await user.save();
 
+    // Send email notification to the post owner
+    const postOwnerEmail = post.userId.email; // Assuming email is stored in the user model
+    if (postOwnerEmail) {
+      await sendNotificationEmail(
+        postOwnerEmail,
+        "New Like on Your Post",
+        `Hi ${post.userId.username}, your post has received a new like from ${user.username}.`
+      );
+    }
+
     res.status(200).json({
       message: walletIncremented
         ? "Post liked, wallet updated"
@@ -532,6 +542,16 @@ export const dislikePost = async (req, res) => {
     // Save the changes
     await post.save();
     await user.save();
+
+    // Send email notification to the post owner
+    const postOwnerEmail = post.userId.email; // Assuming email is stored in the user model
+    if (postOwnerEmail) {
+      await sendNotificationEmail(
+        postOwnerEmail,
+        "New Dislike on Your Post",
+        `Hi ${post.userId.username}, your post has received a new dislike from ${user.username}.`
+      );
+    }
 
     res.status(200).json({
       message: walletIncremented
@@ -607,6 +627,15 @@ export const likePosts = async (req, res) => {
     await post.save();
     await user.save();
     await postOwner.save();
+    // Send email notification to the post owner
+    const postOwnerEmail = post.userId.email; // Assuming email is stored in the user model
+    if (postOwnerEmail) {
+      await sendNotificationEmail(
+        postOwnerEmail,
+        "New Like on Your Post",
+        `Hi ${post.userId.username}, your post has received a new like from ${user.username}.`
+      );
+    }
 
     res.status(200).json({
       message: walletIncremented
@@ -679,6 +708,16 @@ export const dislikePosts = async (req, res) => {
     await user.save();
     await postOwner.save();
 
+    // Send email notification to the post owner
+    const postOwnerEmail = post.userId.email; // Assuming email is stored in the user model
+    if (postOwnerEmail) {
+      await sendNotificationEmail(
+        postOwnerEmail,
+        "New Like on Your Post",
+        `Hi ${post.userId.username}, your post has received a new like from ${user.username}.`
+      );
+    }
+
     res.status(200).json({
       message: walletIncremented
         ? "Post disliked, post owner's wallet updated"
@@ -690,15 +729,24 @@ export const dislikePosts = async (req, res) => {
     console.error("Error disliking post:", error);
     res.status(500).json({ message: "Error disliking post", error });
   }
-};
+}; 
 
 
 export const getPostById = async (req, res) => {
   try {
     const { id } = req.params; // Get the post ID from the request parameters
-    console.log("postbyId")
+    console.log("postbyId",id)
     // Fetch the post from the database
-    const post = await Post.findOne({ _id: id });
+    //const post = await Post.findOne({ _id: id });
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid post ID format" });
+    }
+
+    // Fetch the post from DB
+    const post = await Post.findById(id);
+
 
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
