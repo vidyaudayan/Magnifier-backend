@@ -1,9 +1,10 @@
 import express from 'express';
-import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic, sendMobileOtp, verifyMobileOtp, deactivateUserAccount} from '../controllers/userController.js'; // Adjust the path
+import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic, sendMobileOtp, verifyMobileOtp, deactivateUserAccount, getProfileById} from '../controllers/userController.js'; // Adjust the path
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
 import { saveContact } from '../controllers/contactController.js';
+import { getPostById } from '../controllers/postController.js';
 const userRouter = express.Router();
 const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','https://magnifieradmin.netlify.app'];
 
@@ -42,6 +43,7 @@ userRouter.post("/signup", signup);
 userRouter.post("/login", login); 
 userRouter.get("/userprofile",authMiddleware, getProfile); 
 
+userRouter.get("/userprofile/:id", getProfileById);
 
 userRouter.post("/add-profilepic",authMiddleware, upload.single('profilePic'), addProfilePic)
 userRouter.post("/add-coverpic",authMiddleware, upload.single('coverPic'), addCoverPic)
@@ -52,7 +54,7 @@ userRouter.post("/wallet",authMiddleware,initializeWallet)
 userRouter.get("/usermatrics",authMiddleware, getUserMetrics)
 userRouter.post("/logout",logout)
 
-userRouter.post("/send-otp",sendOTP)
+userRouter.post("/send-otp",sendOTP) 
 userRouter.post("/verify-otp", verifyOTP)
 
 userRouter.post("/send-mobileotp",sendMobileOtp)

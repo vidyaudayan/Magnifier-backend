@@ -307,7 +307,10 @@ export const getProfile = async (req, res) => {
   try {
 
     const user = await User.findById(req.user.id).select('-password'); 
-console.log(user)
+    //const userId = req.params.id; // Get the user ID from URL params
+   // const user = await User.findById(userId).select("-password"); 
+
+    console.log(user)
     if (!user) {
       return res.status(404).send('User not found');
     }
@@ -821,6 +824,29 @@ console.log("deactivate",userId)
   }
 };
 
+
+// Get profile by ID
+
+export const getProfileById = async (req, res) => {
+  try {
+    const userId = req.params.id; // Get the user ID from URL params
+    const user = await User.findById(userId).select("-password"); // Exclude password field
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      username: user.username,
+      profilePic: user.profilePic,
+      email: user.email,
+      coverPic: user.coverPic,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 
 export default signup;   
