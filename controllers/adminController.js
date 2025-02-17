@@ -69,7 +69,7 @@ export const adminSingup = async (req, res) => {
       res.status(200).json({
         message : "Login successfully",
         data : token,
-        success : true,
+        success : true, admin: { id: admin._id, firstName: admin.firstName, email: admin.email },
         error : false
       })
     } catch (error) {

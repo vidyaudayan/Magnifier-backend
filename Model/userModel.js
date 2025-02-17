@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema(
     walletAmount: { type: Number, default: 0 },
     isFirstLogin: { type: Boolean, default: true },
     //reactions: [{ postId: String, reactionType: String }] ,
-    reactions: [
+    reactions: [ 
       {
           postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' }, // Refers to the post
           reactionType: { type: String, enum: ['like', 'dislike'] },   // Reaction type

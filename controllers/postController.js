@@ -577,7 +577,7 @@ export const likePosts = async (req, res) => {
     const userId = req.user.id;
 
     // Fetch the post
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).populate('userId', 'username profilePic email');;
     if (!post) return res.status(404).json({ message: "Post not found" });
 
     // Prevent user from liking their own post
