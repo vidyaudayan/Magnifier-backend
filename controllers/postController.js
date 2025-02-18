@@ -45,11 +45,15 @@ export const createPost = async (req, res) => {
     }
 
 
-    // Convert username to Hindi
-        const translatedUsername = await translate(user.username, { to: "hi" })
-          .then(res => res.text)
-          .catch(() => user.username); // If translation fails, use original username
-    
+    // Convert username to Hindi using Google Translate API
+    let translatedUsername;
+    try {
+      const translation = await translate(user.username, { to: "hi" });
+      translatedUsername = translation.text;
+    } catch (error) {
+      console.error('Translation error:', error);
+      translatedUsername = user.username; // Fallback to original username if translation fails
+    }
     // Create a new post object
     const newPost = new Post({
       userId,
