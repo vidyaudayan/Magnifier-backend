@@ -1057,7 +1057,7 @@ export const sendMobileOtp = (req, res) => {
     .catch((err) => res.status(500).json({ error: err.message }));
 };
 
-// verify mobile otp
+// verify mobile otp send
 
 export const verifyMobileOtp = async (req, res) => {
   let { phoneNumber, otp } = req.body;
