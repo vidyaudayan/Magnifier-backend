@@ -170,14 +170,15 @@ export const updatePostStatus = async (req, res) => {
             return res.status(404).json({ message: "Post not found" });
         }
          // Convert username to Hindi using Google Translate API
-    let translatedUsername;
-    try {
-      const translation = await translate(user.username, { to: "hi" });
-      translatedUsername = translation.text;
-    } catch (error) {
-      console.error('Translation error:', error);
-      translatedUsername = user.username; // Fallback to original username if translation fails
-    }
+         let translatedUsername;
+         try {
+             const translation = await translate(updatedPost.userId.username, { to: "hi" });
+             translatedUsername = translation.text;
+         } catch (error) {
+             console.error('Translation error:', error);
+             translatedUsername = updatedPost.userId.username; // Fallback
+         }
+         
             
 
         // Ensure the user exists before sending the notification
@@ -262,17 +263,17 @@ The Magnifier Team
 
 
  // SMS Notification
- if (user.phoneNumber) {
+ // Correcting phone number reference
+if (updatedPost.userId && updatedPost.userId.phoneNumber) {
   let message = "";
   if (status === "approved") {
       message = `Great news!! Your post "${updatedPost._id}" has been approved. Your post is now live on Magnifier and ready to inspire, engage, and spark conversations!`;
   } else {
-      message = `Unfortunately, your post "${updatedPost._id}" was rejected. Thank you for sharing your thoughts on Magnifier`;
+      message = `Unfortunately, your post "${updatedPost._id}" was rejected. Thank you for sharing your thoughts on Magnifier.`;
   }
 
-  await sendSMS(user.phoneNumber, message);
+  await sendSMS(updatedPost.userId.phoneNumber, message);
 }
-
 
 
         res.status(200).json({ message: `Post ${status}`, success: true });
