@@ -379,6 +379,12 @@ export const login = async (req, res) => {
         );
       }
 
+       // Send SMS for first login
+       if (user.phoneNumber) {
+        const smsMessage = `Welcome to Magnifier, ${user.username}! 🎉 Thank you for joining us. Share your thoughts, spark conversations, and make an impact! 🚀`;
+        await sendSMS(user.phoneNumber, smsMessage);
+      }
+
       // Set first login flag to false
       user.isFirstLogin = false;
       await user.save();

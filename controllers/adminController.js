@@ -164,7 +164,7 @@ export const updatePostStatus = async (req, res) => {
             postId,
             { status },
             { new: true }
-        ).populate('userId', 'username email');
+        ).populate('userId', 'username email phoneNumber');
 
         if (!updatedPost) {
             return res.status(404).json({ message: "Post not found" });
