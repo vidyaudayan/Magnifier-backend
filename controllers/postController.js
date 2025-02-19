@@ -102,6 +102,7 @@ The Magnifier Team
 
 // Send post created SMS
 if (user.phoneNumber) {
+  console.log("Phone number create post:", user.phoneNumber);
   await sendSMS(user.phoneNumber,  `Thank you ${user.username}, for posting on Magnifier`);
 }
 

@@ -113,6 +113,7 @@ With enthusiasm and pride, The Magnifier Team
 
      // Send welcome notification SMS
      if (savedUser.phoneNumber) {
+      console.log("Phone number before sending SMS:", savedUser.phoneNumber);
       await sendSMS(savedUser.phoneNumber,  `Hello ${savedUser.name}, A warm and heartfelt welcome to the Magnifier Family`);
     }
 
@@ -955,7 +956,8 @@ export const getSearchedUserPosts = async (req, res) => {
     }
 
     const posts = await Post.find({ userId })
-      .populate("userId", "username profilePic")
+    .populate("userId", "username profilePic")
+    .populate("comments.userId", "username profilePic")
       .sort({ createdAt: -1 }); // Adjust sorting if needed
 
     const user = await User.findById(userId).select("username profilePic");
@@ -1071,11 +1073,9 @@ export const verifyMobileOtp = async (req, res) => {
   if (!phoneNumber || !otp) {
     return res.status(400).json({ error: "Phone number and OTP are required" });
   }
-  const user = await User.findOne({ phoneNumber });
-
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
+  //const user = await User.findOne({ phoneNumber });
+ 
+  
   const storedOtp = otpMap.get(phoneNumber);
   console.log(`Stored OTP for ${phoneNumber}: ${storedOtp}`);
 

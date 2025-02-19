@@ -3,8 +3,8 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-    username: { type: String, required: true },
+    name: { type: String, },
+    username: { type: String,  },
     profilePic: { type: String, default: "" },
     coverPic: { type: String, default: "" },
     fathersName: { type: String },
