@@ -1,7 +1,6 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
-dotenv.config();
 
 const transporter = nodemailer.createTransport({
   service: 'Gmail',
@@ -11,7 +10,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const sendNotificationEmail = async (email, subject, message) => {
+export const sendNotificationEmail = async (email, subject, message,htmlContent) => {
   const mailOptions = {
     from: process.env.EMAIL_USERNAME,
     to: email,
