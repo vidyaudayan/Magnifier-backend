@@ -153,16 +153,21 @@ export const RejectPost= async (req, res) => {
 
 
 export const updatePostStatus = async (req, res) => {
-    const { postId, status } = req.body; // status: 'approved' or 'rejected'
+    const { postId, status,stickyDuration  } = req.body; // status: 'approved' or 'rejected'
     
     if (!["approved", "rejected"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
     }
 
     try {
+      const updateFields = { status };
+    // If post is approved and admin chooses a sticky duration, update stickyUntil:
+    if (status === "approved" && stickyDuration) {
+      updateFields.stickyUntil = new Date(Date.now() + parseInt(stickyDuration));
+    }
         const updatedPost = await Post.findByIdAndUpdate(
             postId,
-            { status },
+            { status }, updateFields,
             { new: true }
         ).populate('userId', 'username email phoneNumber');
 

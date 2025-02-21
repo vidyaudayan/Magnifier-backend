@@ -13,7 +13,7 @@ export const createPost = async (req, res) => {
 
     const file = req.file;
     const userId = req.user.id;
-    const { postType, content } = req.body;
+    const { postType, content , stickyDuration} = req.body;
    // const user = await User.findOne({ username });
    
    // Fetch user by ID
@@ -44,6 +44,12 @@ export const createPost = async (req, res) => {
       return res.status(400).json({ message: 'Content or media is required' });
     }
 
+    let stickyUntil = null;
+    const ONE_HOUR = 3600000;
+    if (stickyDuration && parseInt(stickyDuration) <= ONE_HOUR) {
+      stickyUntil = new Date(Date.now() + parseInt(stickyDuration));
+    }
+
 
     // Convert username to Hindi using Google Translate API
     let translatedUsername;
@@ -62,7 +68,7 @@ export const createPost = async (req, res) => {
       //mediaUrl: postType !== 'Text' ? mediaUrl : '', // Store mediaUrl for non-text posts
       content: content || '',
   mediaUrl: mediaUrl || '', 
-      
+  stickyUntil,
       status: 'pending',
     });
 

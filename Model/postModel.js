@@ -8,6 +8,7 @@ const postSchema = new mongoose.Schema(
     content: { type: String, default: '' }, // URL for images or voice notes
     mediaUrl: { type: String ,  default: ''},
     postType: { type: String, enum: ['Text', 'Photo', 'VoiceNote'], required: true },
+    stickyUntil: { type: Date, default: null },
     likes: { type: Number, default: 0 },
     dislikes: { type: Number, default:0 },
     createdAt: { type: Date, default: Date.now },
@@ -21,7 +22,7 @@ const postSchema = new mongoose.Schema(
     ],
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   },
-  { timestamps: true }
+  { timestamps: true } 
 );
 
 const Post = mongoose.model('Post', postSchema);

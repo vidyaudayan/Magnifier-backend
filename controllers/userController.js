@@ -13,6 +13,7 @@ import { sendNotificationEmail } from "../config/notifications.js";
 dotenv.config();
 import { sendSMS } from "../utils/sendSMS.js";
 import translate from "@vitalets/google-translate-api";
+import getSignupEmailTemplate from "../templates/signupMessage.js";
 
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -92,22 +93,8 @@ const signup = async (req, res) => {
     if (savedUser.email) {
       await sendNotificationEmail(
         savedUser.email,
-        "Welcome to Magnifier – Your Journey to Greatness Begins! 🌟",
-        `Hi Champion,
-A warm and heartfelt welcome to the Magnifier Family! ❤️
-Congratulations! By joining Web Magnifier, you’ve taken the first bold step toward making your mark on the world. Now, you have access to all the incredible features of our platform, crafted with care and passion – proudly Made in India (Indian Flag) with love ❤️.
-This is your stage to shine! Share your bold opinions on politics, ignite meaningful conversations, and contribute to building a brighter future in the heart of the world’s largest democracy. Together, let’s create a home for ideas that inspire and empower.
-Are you ready to amplify your voice and make an impact? Let’s embark on this exciting journey together!
-With enthusiasm and pride, The Magnifier Team
-
-विषय: मैग्निफायर में आपका स्वागत है 🌟
-नमस्ते चैंग्नपयन,
-मैग्निफायर पररवार में आपका हाग्नदिक स्वागत है! ❤️
-बधाई हो! वेब मैग्निफायर से जुड़कर, आपने दुग्ननया पर अपनी छाप छोड़ने की पहली साहसी पहल की है। अब, आप हमारे प्लेटफॉमि की सभी अद्भुत सुग्नवधाओं का उपयोग कर सकते हैं, जो प्यार और मेहनत से बनाई गई हैं – गवि से भारत में विवमित (Flag) प्यार से ❤️।
-यह आपकी चमकने की बेला है! राजनीग्नत पर अपने साहग्नसक ग्नवचार साझा करें, सार्िक बातचीत शुरू करें, और दुग्ननया के सबसे बड़े लोकतंत्र के हृदय में एक उज्ज्वल भग्नवष्य बनाने में योगदान दें। आइए, ग्नमलकर ऐसे ग्नवचारों का घर बनाएं जो प्रेररत करें और सशक्त बनाएं।
-अपनी आवाज़ को मजबूत करने और प्रभाव डालने के ग्नलए तैयार हैं? चग्नलए, इस रोमांचक यात्रा को एक सार् शुरू करें!
-उत्साह और गवि के सार्,
- मैविफायर टीम`
+        "Welcome to Magnifier - Your Journey to Greatness Begins! 🌟",
+        getSignupEmailTemplate(savedUser.username)
       );
     }
 

@@ -16,7 +16,8 @@ export const sendNotificationEmail = async (email, subject, message) => {
     from: process.env.EMAIL_USERNAME,
     to: email,
     subject: subject,
-    text: message,
+    //text: message,
+    html: htmlContent, 
   };
 
   try {
