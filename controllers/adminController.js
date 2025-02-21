@@ -291,5 +291,5 @@ if (updatedPost.userId && updatedPost.userId.phoneNumber) {
 
 // Log out
 export const logout= async (req, res) => {
-  res.status(200).json({ message: "User logged out successfully." });
+  res.status(200).json({ success: true, message: "User logged out successfully." });
  }

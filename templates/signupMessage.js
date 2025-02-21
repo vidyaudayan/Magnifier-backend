@@ -1,6 +1,10 @@
 
 
 const getSignupEmailTemplate = (userName) => {
+    if (!userName) {
+        console.error("❌ Missing userName in email template");
+        return "<p>Error: Missing user name.</p>";
+      }
     return `
     <!DOCTYPE html>
     <html>
