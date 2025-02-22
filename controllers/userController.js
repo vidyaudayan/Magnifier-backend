@@ -93,7 +93,7 @@ const signup = async (req, res) => {
     if (savedUser.email) {
       await sendNotificationEmail(
         savedUser.email,
-        "Welcome to Magnifier - Your Journey to Greatness Begins! 🌟",
+        "Welcome to Magnifier - Your Journey to Greatness Begins! 🌟",null,
         getSignupEmailTemplate(savedUser.username)
       );
     }

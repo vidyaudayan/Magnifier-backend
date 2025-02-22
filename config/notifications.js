@@ -15,7 +15,7 @@ export const sendNotificationEmail = async (email, subject, message,htmlContent)
     from: process.env.EMAIL_USERNAME,
     to: email,
     subject: subject,
-    //text: message,
+    //text: message || "This email requires an HTML-compatible client.",
     html: htmlContent, 
   };
 
