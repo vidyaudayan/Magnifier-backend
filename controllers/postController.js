@@ -4,6 +4,7 @@ import User from '../Model/userModel.js'
 import { sendNotificationEmail } from '../config/notifications.js';
 import translate from '@vitalets/google-translate-api'
 import { sendSMS } from '../utils/sendSMS.js';
+import getPostCreationEmailTemplate from '../templates/createPostMessage.js';
 // create post new
 export const createPost = async (req, res) => {
   try {
@@ -76,35 +77,16 @@ export const createPost = async (req, res) => {
     const savedPost = await newPost.save();
     const populatedPost = await Post.findById(savedPost._id).populate('userId', 'username profilePic');
 
-// Send post create notification
-if (user.email) {
-  await sendNotificationEmail(user.email, "Your Voice Matters - Thank You for Sharing! 🌟", `Hi ${user.username},
-✨ Thank you for posting on Magnifier! ✨
-Your thoughts are now in the spotlight! 🎯 Our advanced AI models and expert team are reviewing your post to ensure it’s polished, meaningful, and ready to shine.
-📌 Here’s what’s next:
-
-Your post will be live in 20-25 minutes after approval.
-
-Once live, your voice will reach thousands of like-minded individuals ready to engage and inspire!
-We’re thrilled to have you as part of our community. Keep sharing your bold ideas and sparking conversations that matter! 🚀
-Stay tuned – your post is about to make waves! 🌊
-Warm regards, 
-The Magnifier Team
 
-विषय: आपकी आवाज़ महत्वपूर्ि है – शेयर करने के ग्नलए धन्यवाद! 🌟
-नमस्ते **${translatedUsername}**,
-✨ मैविफायर पर पोस्ट करिे के विए धन्यिाद! ✨
-आपके ग्नवचार अब स्पॉटलाइट में हैं! 🎯 हमारे उन्नत AI मॉडल और ग्नवशेषज्ञ टीम आपकी पोस्ट को सही, सार्िक और चमकने के ग्नलए तैयार करने के ग्नलए जांच कर रहे हैं।
-📌 आगे क्या होगा:
-
-आपकी पोस्ट को मंजूरी ग्नमलने के बाद 20-25 वमिट में लाइव कर ग्नदया जाएगा।
-
-एक बार लाइव होने के बाद, आपकी आवाज़ हजारों ग्नवचारशील लोगों तक पहंचेगी, जो आपसे जुड़ने और प्रेररत होने के ग्नलए तैयार हैं!
-आपको हमारे समुदाय का ग्नहस्सा बनकर बहत खुशी हो रही है। अपने साहग्नसक ग्नवचारों को साझा करते रहें और ऐसी बातचीत शुरू करें जो मायने रखती हो! 🚀
-तैयार रहें – आपकी पोस्ट चचाि का ग्नवषय बनने वाली है! 🌊
-सादर, 
-मैविफायर टीम`);
+
+// Send post created notification
+if (user.email) {
+  await sendNotificationEmail(
+    user.email,"Your Voice Matters – Thank You for Sharing! 🌟",null,
+    getPostCreationEmailTemplate(user.username)
+  );
 }
+
 
 // Send post created SMS
 if (user.phoneNumber) {

@@ -14,7 +14,8 @@ dotenv.config();
 import { sendSMS } from "../utils/sendSMS.js";
 import translate from "@vitalets/google-translate-api";
 import getSignupEmailTemplate from "../templates/signupMessage.js";
-
+import getLoginEmailTemplate from "../templates/loginMessage.js";
+import getJobApplicationEmailTemplate from "../templates/jobMessage.js";
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
@@ -260,34 +261,14 @@ export const applyJob = async (req, res) => {
 
     await jobApplication.save();
 
-    // Send login notification
+    
+
+    // Send job application notification
     if (user.email) {
       await sendNotificationEmail(
         user.email,
-        "Thank You for Applying – Let’s Build the Future Together! 🚀",
-        `Hi ${user.username},
-Thank you for applying for a job  at Magnifier Platform! We're excited you’re considering joining our mission to amplify voices and empower communities.
-📌 What's next?
-1. Our team will review your application.
-2. If your skills align with our needs, we'll contact you for an interview.
-3. Stay tuned - we'll keep you updated!
-Your talent and passion could be the perfect fit for our growing team. Explore more about us on our Web Magnifier Platform.
-Thank you again - we can't wait to learn more about you!
-Best regards, 
-The Web Magnifier Team
-
-
-विषय: आवेदन करने के ग्नलए धन्यवाद - आइए ग्नमलकर भग्नवष्य बनाएं! 🚀
-नमस्ते **${translatedUsername}**,
-मैविफायर प्लेटफॉमि में [जॉब टाइटि] की भूग्नमका के ग्नलए आवेदन करने के ग्नलए धन्यवाद! हमें खुशी है ग्नक आप आवाज़ों को मजबूत करने और समुदायों को सशक्त बनाने के हमारे ग्नमशन का ग्नहस्सा बनने पर ग्नवचार कर रहे हैं।
-📌 आगे क्या होगा?
-1. हमारी टीम आपके आवेदन की समीक्षा करेगी।
-2. यग्नद आपके कौशल हमारी आवश्यकताओं से मेल खाते हैं, तो हम आपसे इंटरव्यू के ग्नलए संपकि करेंगे।
-3. अपडेट के ग्नलए बने रहें - हम आपको सूग्नचत करते रहेंगे!
-आपकी प्रग्नतभा और जुनून हमारी बढती टीम के ग्नलए एकदम सही हो सकते हैं। हमारे बारे में अग्नधक जानने के ग्नलए िेब मैविफायर प्लेटफॉमि पर जाएं।
-ग्नफर से धन्यवाद -हम आपके बारे में और जानने के ग्नलए उत्सुक हैं!
-सादर,
- िेब मैविफायर टीम`
+        "Thank You for Applying – Let’s Build the Future Together! 🚀",null,
+        getJobApplicationEmailTemplate(user.username)
       );
     }
 
@@ -352,17 +333,8 @@ export const login = async (req, res) => {
       // Send welcome email
       if (user.email) {
         await sendNotificationEmail(
-          user.email,
-          "Welcome to Magnifier! 🎉",
-          `Hi Champion,\n\nWelcome to the Magnifier Family! ❤️\n\nCongratulations! By signing up for Web Magnifier, you’ve taken the first step toward world domination. Now, you can access all the features of our platform, specially designed for YOU – made in India 🇮🇳 with love ❤️.\n\nLet’s show the world how amazing you are! Share your opinions on politics, spark meaningful conversations, and help build a home for thought in the world’s mother of democracy.\n\nReady to magnify your voice? Let’s get started!\n\nBest regards,\nThe Magnifier Team
-          
-          नमस्ते चैंग्नपयन,
-मैग्निफायर पररवार में आपका स्वागत है! ❤️
-बधाई हो! वेब मैग्निफायर के ग्नलए साइन अप करके, आपने ग्नवश्व ग्नवजय की ग्नदशा में पहला कदम बढा ग्नदया है। अब आप हमारे प्लेटफॉमि की सभी सुग्नवधाओं का उपयोग कर सकते हैं, जो ग्नवशेष रूप से आपके ग्नलए बनाई गई हैं – भारत में बनाया गया 🇮🇳, प्यार से ❤️।
-आइए दुग्ननया को ग्नदखाएं ग्नक आप ग्नकतने अद्भुत हैं! राजनीग्नत पर अपनी राय साझा करें, सार्िक बातचीत शुरू करें, और लोकतंत्र की जननी कहलाने वाली इस दुग्ननया की गोद में एक ग्नवचारशील घर बनाने में मदद करें।
-अपनी आवाज़ को मजबूत करने के ग्नलए तैयार हैं? आइए शुरू करें!
-सादर, 
-मैग्निफायर टीम`
+          user.email,"Congratuations - 🎉 Thank you for joining us. Share your thoughts, spark conversations, and make an impact! 🚀 🌟",null,
+          getLoginEmailTemplate(user.username)
         );
       }
 
