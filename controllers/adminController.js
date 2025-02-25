@@ -168,43 +168,47 @@ export const updatePostStatus = async (req, res) => {
       updateFields.stickyUntil = new Date(Date.now() + parseInt(stickyDuration));
     }
         const updatedPost = await Post.findByIdAndUpdate(
-            postId,
-            { status }, updateFields,
+            postId, updateFields,
             { new: true }
         ).populate('userId', 'username email phoneNumber');
 
         if (!updatedPost) {
             return res.status(404).json({ message: "Post not found" });
         }
-         // Convert username to Hindi using Google Translate API
-         let translatedUsername;
-         try {
-             const translation = await translate(updatedPost.userId.username, { to: "hi" });
-             translatedUsername = translation.text;
-         } catch (error) {
-             console.error('Translation error:', error);
-             translatedUsername = updatedPost.userId.username; // Fallback
-         }
-         
+        
+        if (!updatedPost.userId) {
+          console.error("Error: User not found for this post.");
+          return res.status(404).json({ message: "User not found for this post" });
+        }   
+
+       
+
+            try {
+              if (updatedPost.userId.email) {
+                const userName = updatedPost.userId.username;
+                const userEmail = updatedPost.userId.email;
             
-
-        // Ensure the user exists before sending the notification
-        if (updatedPost?.userId?.email) {
-            const userName = updatedPost.userId.username; // Fetch username
-            const userEmail = updatedPost.userId.email; // Fetch user email
-            const status = updatedPost.status;
-
-            if (status === "approved") {
-                // Email for approved post
-                const subject = "Your Post is Live – Let the World Hear Your Voice! 🌍✨";
-         await sendNotificationEmail(userEmail, subject, null,getPostLiveEmailTemplate(userName));
-            } else if (status === "rejected") {
-                // Email for rejected post
-                const subject = "Let’s Refine Your Post – You’re Almost There! 🚀";
-             await sendNotificationEmail(userEmail, subject, null,getPostRejectionEmailTemplate(userName))
-            }}
-
-
+                if (status === "approved") {
+                  await sendNotificationEmail(
+                    userEmail,
+                    "Your Post is Live – Let the World Hear Your Voice! 🌍✨",
+                    null,
+                    getPostLiveEmailTemplate(userName)
+                  );
+                } else if (status === "rejected") {
+                  await sendNotificationEmail(
+                    userEmail,
+                    "Let’s Refine Your Post – You’re Almost There! 🚀",
+                    null,
+                    getPostRejectionEmailTemplate(userName)
+                  );
+                }
+                console.log("Email sent successfully to:", userEmail);
+              }
+            } catch (emailError) {
+              console.error("Error sending email:", emailError);
+            }
+            
 
 
 
