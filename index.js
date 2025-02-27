@@ -6,7 +6,8 @@ import bodyParser from 'body-parser';
 import userRouter from './routes/userRoutes.js';
 import postRouter from './routes/postRoutes.js';
 import adminRouter from './routes/adminRoutes.js'
-import { cleanupInactiveUsers } from './jobs/cleanupInactiveUsers.js';
+import { cleanupInactiveUsers, unpinExpiredPosts } from './jobs/cleanupInactiveUsers.js';
+import { generateSlotsForDay } from './jobs/slotgenerate.js';
 const app = express()
 app.use(bodyParser.json())
 {/*const corsOptions = {
@@ -52,6 +53,8 @@ connectDb()
 const port = process.env.PORT;
 
 cleanupInactiveUsers();
+unpinExpiredPosts()
+generateSlotsForDay();
 
 app.listen(port, () => {
   console.log(` Listening on port ${port}`);

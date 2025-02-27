@@ -563,6 +563,8 @@ export const getUserMetrics = async (req, res) => {
     //const walletAmount = (totalLikes + totalDislikes) * 10;
 
     res.status(200).json({
+      userName: user.name, // Include user name
+      profilePicture: user.profilePicture, // Include profile picture
       postCount,
       totalLikes,
       totalDislikes,

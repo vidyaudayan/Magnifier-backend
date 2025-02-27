@@ -1,5 +1,6 @@
 import Post from "../Model/postModel.js";
 import Admin from "../Model/adminModel.js"
+import Slot from "../Model/slotModel.js";
 import bcrypt from "bcrypt";
 import { sendSMS } from "../utils/sendSMS.js";
 import translate from '@vitalets/google-translate-api'
@@ -165,7 +166,10 @@ export const updatePostStatus = async (req, res) => {
       const updateFields = { status };
     // If post is approved and admin chooses a sticky duration, update stickyUntil:
     if (status === "approved" && stickyDuration) {
-      updateFields.stickyUntil = new Date(Date.now() + parseInt(stickyDuration));
+      //updateFields.stickyUntil = new Date(Date.now() + parseInt(stickyDuration));
+      updateFields.stickyUntil = new Date(Date.now() + parseInt(stickyDuration) * 60 * 60 * 1000);
+      updateFields.stickyDuration = parseInt(stickyDuration);
+   
     }
         const updatedPost = await Post.findByIdAndUpdate(
             postId, updateFields,
@@ -238,3 +242,105 @@ if (updatedPost.userId && updatedPost.userId.phoneNumber) {
 export const logout= async (req, res) => {
   res.status(200).json({ success: true, message: "User logged out successfully." });
  }
+
+
+ // Get avilable slots
+
+ export const getAvailableSlots= async (req, res) => {
+  try {
+    const { duration } = req.query; // 1, 3, 6, or 12 hours
+
+    if (![1, 3, 6, 12].includes(parseInt(duration))) {
+        return res.status(400).json({ error: "Invalid duration" });
+    }
+
+    let availableSlots = [];
+
+    for (let hour = 0; hour <= 24 - duration; hour++) {
+        // Check if all hours in this range are available
+        const slotRange = await Slot.find({ 
+            hour: { $gte: hour, $lt: hour + parseInt(duration) },
+            booked: false 
+        });
+
+        if (slotRange.length === parseInt(duration)) {
+            availableSlots.push({ startHour: hour, endHour: hour + parseInt(duration) });
+        }
+    }
+
+    res.json(availableSlots);
+} catch (error) {
+    console.error("Error fetching slots:", error);
+    res.status(500).json({ error: "Error fetching slots" });
+}
+}
+
+// Pin post
+
+export const pinPost= async (req, res) => {
+  try {
+      const { postId, slotHour,stickyDuration } = req.body;
+
+      // Check if the slot is available
+      const slot = await Slot.findOne({ hour: slotHour, booked: false });
+      if (!slot) {
+          return res.status(400).json({ message: "Slot already booked" });
+      }
+
+      // Calculate expiration time (3 hours later)
+      const expirationTime = new Date();
+      //expirationTime.setHours(expirationTime.getHours() + 3);
+      expirationTime.setHours(expirationTime.getHours() + stickyDuration);
+
+      // Pin the post
+      const post = await Post.findByIdAndUpdate(postId, {
+          sticky: true,
+          stickyUntil: expirationTime, stickyDuration
+      });
+
+      // Mark the slot as booked
+      slot.booked = true;
+      slot.bookedBy = postId;
+      slot.bookedAt = new Date();
+      await slot.save();
+
+      res.json({ message: "Post pinned for ${stickyDuration}!", stickyUntil: expirationTime });
+  } catch (error) {
+      res.status(500).json({ error: "Error pinning post" });
+  }
+};
+
+
+// book slot
+export const bookSlot= async (req, res) => {
+  try {
+    const { postId, startHour, endHour } = req.body;
+
+    // Ensure all selected slots are free
+    const freeSlots = await Slot.find({
+        hour: { $gte: startHour, $lt: endHour },
+        booked: false,
+    });
+
+    if (freeSlots.length !== (endHour - startHour)) {
+        return res.status(400).json({ error: "One or more slots are already booked" });
+    }
+
+    // Mark slots as booked
+    await Slot.updateMany(
+        { hour: { $gte: startHour, $lt: endHour } },
+        { booked: true, bookedBy: postId, bookedAt: new Date() }
+    );
+
+    // Update post sticky details
+    await Post.findByIdAndUpdate(postId, {
+        sticky: true,
+        stickyUntil: new Date(Date.now() + (endHour - startHour) * 60 * 60 * 1000),
+    });
+
+    res.json({ message: "Slot booked successfully!" });
+} catch (error) {
+    console.error("Error booking slot:", error);
+    res.status(500).json({ error: "Error booking slot" });
+}
+}

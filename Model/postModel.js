@@ -8,8 +8,10 @@ const postSchema = new mongoose.Schema(
     content: { type: String, default: '' }, // URL for images or voice notes
     mediaUrl: { type: String ,  default: ''},
     postType: { type: String, enum: ['Text', 'Photo', 'VoiceNote'], required: true },
+    sticky: { type: Boolean, default: false },
     stickyUntil: { type: Date, default: null },
     likes: { type: Number, default: 0 },
+    stickyDuration: { type: Number, enum: [0,1, 3, 6, 12], default: 0 } ,
     dislikes: { type: Number, default:0 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },

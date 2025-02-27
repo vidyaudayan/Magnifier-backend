@@ -1,7 +1,7 @@
 import express from 'express';
 
 import cors from 'cors'
-import { adminSingin, adminSingup, approvePost, fetchPendingPosts, RejectPost, updatePostStatus } from '../controllers/adminController.js';
+import { adminSingin, adminSingup, approvePost, fetchPendingPosts, RejectPost, updatePostStatus,getAvailableSlots,pinPost, bookSlot } from '../controllers/adminController.js';
 import { logout } from '../controllers/adminController.js';
 
 const adminRouter = express.Router();
@@ -43,4 +43,8 @@ adminRouter.patch("/approve/:id",approvePost)
 adminRouter.patch("/reject/:id",RejectPost)
 adminRouter.post("/updatepoststatus", updatePostStatus)
 adminRouter.post("/logout",logout) 
+
+adminRouter.get("/available-slots", getAvailableSlots);
+adminRouter.post("/pinpost",pinPost)
+adminRouter.post("/book-slot",bookSlot)
 export default adminRouter
