@@ -51,3 +51,13 @@ export const unpinExpiredPosts=  async () => { // Runs every 30 minutes
 }
 
 cron.schedule("*/30 * * * *",unpinExpiredPosts)
+
+export const resetSlotsDaily = async () => {
+  try {
+      await Slot.updateMany({}, { booked: false, bookedBy: null, bookedAt: null });
+      console.log("✅ All slots reset for the new day!");
+  } catch (error) {
+      console.error("❌ Error resetting slots:", error);
+  }
+};
+cron.schedule("0 0 * * *", resetSlotsDaily);

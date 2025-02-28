@@ -15,7 +15,7 @@ const postSchema = new mongoose.Schema(
     dislikes: { type: Number, default:0 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
-    comments: [
+    comments: [ 
       {
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         comment: { type: String  },

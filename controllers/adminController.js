@@ -2,7 +2,9 @@ import Post from "../Model/postModel.js";
 import Admin from "../Model/adminModel.js"
 import Slot from "../Model/slotModel.js";
 import bcrypt from "bcrypt";
+import { io } from "../index.js";
 import { sendSMS } from "../utils/sendSMS.js";
+import mongoose from "mongoose";
 import translate from '@vitalets/google-translate-api'
 import { sendNotificationEmail } from "../config/notifications.js";
 import { adminToken } from "../utils/generateToken.js";
@@ -312,7 +314,7 @@ export const pinPost= async (req, res) => {
 
 
 // book slot
-export const bookSlot= async (req, res) => {
+{/*export const bookSlot= async (req, res) => {
   try {
     const { postId, startHour, endHour } = req.body;
 
@@ -343,4 +345,56 @@ export const bookSlot= async (req, res) => {
     console.error("Error booking slot:", error);
     res.status(500).json({ error: "Error booking slot" });
 }
-}
+}*/}
+
+export const bookSlot = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { postId, startHour, endHour } = req.body;
+
+    // Step 1: Fetch the slots in a transaction to ensure accurate data
+    const freeSlots = await Slot.find({
+      hour: { $gte: startHour, $lt: endHour },
+      booked: false,
+    }).session(session);
+
+    // Step 2: Check if all requested slots are free
+    if (freeSlots.length !== endHour - startHour) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ error: "One or more slots are already booked" });
+    }
+
+    // Step 3: Mark slots as booked within the transaction
+    await Slot.updateMany(
+      { hour: { $gte: startHour, $lt: endHour }, booked: false },
+      { booked: true, bookedBy: postId, bookedAt: new Date() },
+      { session }
+    );
+
+    // Step 4: Update post sticky details
+    const stickyUntil = new Date(Date.now() + (endHour - startHour) * 60 * 60 * 1000);
+
+    await Post.findByIdAndUpdate(
+      postId,
+      { sticky: true, stickyUntil: stickyUntil },
+      { session }
+    );
+
+    // Step 5: Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    // **Emit event to update frontend in real-time**
+    io.emit("slotBooked", { startHour, endHour });
+
+    res.json({ message: "Slot booked successfully!", stickyUntil });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Error booking slot:", error);
+    res.status(500).json({ error: "Error booking slot" });
+  }
+};

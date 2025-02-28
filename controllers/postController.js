@@ -14,7 +14,7 @@ export const createPost = async (req, res) => {
 
     const file = req.file;
     const userId = req.user.id;
-    const { postType, content , stickyDuration} = req.body;
+    const { postType, content} = req.body;
    // const user = await User.findOne({ username });
    
    // Fetch user by ID
@@ -45,14 +45,14 @@ export const createPost = async (req, res) => {
       return res.status(400).json({ message: 'Content or media is required' });
     }
 
-    let stickyUntil = null;
+    {/*let stickyUntil = null;
     const ONE_HOUR = 3600000;
     if (stickyDuration && parseInt(stickyDuration) <= ONE_HOUR) {
       stickyUntil = new Date(Date.now() + parseInt(stickyDuration));
-    }
+    }*/}
 
 
-    // Convert username to Hindi using Google Translate API
+    
    
     // Create a new post object
     const newPost = new Post({
@@ -62,7 +62,7 @@ export const createPost = async (req, res) => {
       //mediaUrl: postType !== 'Text' ? mediaUrl : '', // Store mediaUrl for non-text posts
       content: content || '',
   mediaUrl: mediaUrl || '', 
-  stickyUntil,
+
       status: 'pending',
     });
 
@@ -105,9 +105,18 @@ if (user.phoneNumber) {
 export const getPosts = async (req, res) => {
   try {
     const posts = await Post.find().sort({stickyUntil: -1, createdAt: -1 }).populate('userId', 'username profilePic')
-    .populate('userId', 'username profilePic')
-    .populate('comments.userId', 'username')
-    .populate('comments.userId', 'username profilePic'); 
+    //.populate('userId', 'username profilePic')
+    //.populate('comments.userId', 'username')
+    //.populate('comments.userId', 'username profilePic'); 
+
+    .populate({
+      path: 'userId',
+      select: 'username profilePic' // Fetch only username & profilePic
+    })
+    .populate({
+      path: 'comments.userId',
+      select: 'username profilePic' // Fetch only necessary fields for comments
+    });
     res.status(200).json(posts);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching posts', error });

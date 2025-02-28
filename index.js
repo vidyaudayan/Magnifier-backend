@@ -1,14 +1,23 @@
 import express from 'express'
+import http from "http";
 import cors from 'cors'
 import connectDb from './config/db.js'
 import cookieParser from "cookie-parser";
 import bodyParser from 'body-parser';
+import { Server } from "socket.io";
 import userRouter from './routes/userRoutes.js';
 import postRouter from './routes/postRoutes.js';
 import adminRouter from './routes/adminRoutes.js'
-import { cleanupInactiveUsers, unpinExpiredPosts } from './jobs/cleanupInactiveUsers.js';
+import { cleanupInactiveUsers, resetSlotsDaily, unpinExpiredPosts } from './jobs/cleanupInactiveUsers.js';
 import { generateSlotsForDay } from './jobs/slotgenerate.js';
 const app = express()
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Allow all origins; modify for security
+    methods: ["GET", "POST"],
+  },
+})
 app.use(bodyParser.json())
 {/*const corsOptions = {
   origin: 'https://magnifyweb.netlify.app', // Replace with your frontend's URL
@@ -51,11 +60,25 @@ connectDb()
 
 
 const port = process.env.PORT;
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  socket.on("slotBooked", () => {
+    io.emit("updateSlots");  // Broadcast update event to all clients
+});
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});    
+
+export { io, server }; 
 
 cleanupInactiveUsers();
 unpinExpiredPosts()
 generateSlotsForDay();
+resetSlotsDaily()
 
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(` Listening on port ${port}`);
 });   
