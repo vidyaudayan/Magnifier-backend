@@ -1,6 +1,7 @@
 import Post from "../Model/postModel.js";
 import Admin from "../Model/adminModel.js"
 import Slot from "../Model/slotModel.js";
+import User from "../Model/userModel.js";
 import bcrypt from "bcrypt";
 import { io } from "../index.js";
 import { sendSMS } from "../utils/sendSMS.js";
@@ -396,5 +397,27 @@ export const bookSlot = async (req, res) => {
     session.endSession();
     console.error("Error booking slot:", error);
     res.status(500).json({ error: "Error booking slot" });
+  }
+};
+
+// Get all users
+export const getAllUsers = async (req, res) => {
+  try {
+      const users = await User.find();
+      res.json(users);
+  } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch user data" });
+  }
+}
+
+// get all posts
+
+export const getAllPosts=  async (req, res) => {
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 }); // Fetch posts sorted by latest first
+    res.status(200).json(posts);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
