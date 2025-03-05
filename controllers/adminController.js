@@ -415,9 +415,9 @@ export const getAllUsers = async (req, res) => {
 
 export const getAllPosts=  async (req, res) => {
   try {
-    const posts = await Post.find().sort({ createdAt: -1 }); // Fetch posts sorted by latest first
+    const posts = await Post.find().sort({ createdAt: -1 }).populate("userId", "name email vidhanSabha username"); // Fetch posts sorted by latest first
     res.status(200).json(posts);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
-};
+};   
