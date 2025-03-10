@@ -3,12 +3,13 @@ import http from "http";
 import cors from 'cors'
 import connectDb from './config/db.js'
 import cookieParser from "cookie-parser";
+import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
 import { Server } from "socket.io";
 import userRouter from './routes/userRoutes.js';
 import postRouter from './routes/postRoutes.js';
 import adminRouter from './routes/adminRoutes.js'
-import { cleanupInactiveUsers, resetSlotsDaily, unpinExpiredPosts } from './jobs/cleanupInactiveUsers.js';
+import { cleanupInactiveUsers, resetSlotsDaily, unpinExpiredPosts,processStickyPosts } from './jobs/cleanupInactiveUsers.js';
 import { generateSlotsForDay } from './jobs/slotgenerate.js';
 const app = express()
 const server = http.createServer(app);
@@ -75,10 +76,19 @@ io.on("connection", (socket) => {
 export { io, server }; 
 
 cleanupInactiveUsers();
-unpinExpiredPosts()
+
 generateSlotsForDay();
 resetSlotsDaily()
 
+mongoose.connection.once("open", () => {
+  console.log("✅ Connected to MongoDB");
+  unpinExpiredPosts(); // Run once on startup
+  setInterval(unpinExpiredPosts, 30 * 60 * 1000); // Run every 30 minutes
+});
+
+setInterval(processStickyPosts, 60 * 1000); // Runs every 1 minute
+
+
 server.listen(port, () => {
   console.log(` Listening on port ${port}`);
-});   
+});     

@@ -24,9 +24,9 @@ const postSchema = new mongoose.Schema(
     ],
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   },
-  { timestamps: true } 
+  { timestamps: true }  
 );
 
 const Post = mongoose.model('Post', postSchema);
-export default Post;
+export default Post;  
    

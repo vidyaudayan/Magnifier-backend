@@ -104,7 +104,7 @@ if (user.phoneNumber) {
 // Fetch posts
 export const getPosts = async (req, res) => {
   try {
-    const posts = await Post.find().sort({stickyUntil: -1, createdAt: -1 }).populate('userId', 'username profilePic')
+    const posts = await Post.find().sort({ sticky: -1,stickyUntil: -1, createdAt: -1 }).populate('userId', 'username profilePic')
     //.populate('userId', 'username profilePic')
     //.populate('comments.userId', 'username')
     //.populate('comments.userId', 'username profilePic'); 

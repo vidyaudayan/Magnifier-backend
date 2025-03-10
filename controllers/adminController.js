@@ -280,7 +280,7 @@ export const logout= async (req, res) => {
 
 // Pin post
 
-export const pinPost= async (req, res) => {
+{/*export const pinPost= async (req, res) => {
   try {
       const { postId, slotHour,stickyDuration } = req.body;
 
@@ -289,6 +289,11 @@ export const pinPost= async (req, res) => {
       if (!slot) {
           return res.status(400).json({ message: "Slot already booked" });
       }
+
+       // Calculate the start time (when the post should become sticky)
+       const now = new Date();
+       const startTime = new Date(now);
+       startTime.setHours(slotHour, 0, 0, 0);
 
       // Calculate expiration time (3 hours later)
       const expirationTime = new Date();
@@ -311,7 +316,38 @@ export const pinPost= async (req, res) => {
   } catch (error) {
       res.status(500).json({ error: "Error pinning post" });
   }
+};*/}
+
+export const pinPost = async (req, res) => {
+  try {
+      const { postId, slotHour, stickyDuration } = req.body;
+
+      const now = new Date();
+      const startTime = new Date(now);
+      startTime.setHours(slotHour, 0, 0, 0); // Set to the selected slot start time (e.g., 11 AM)
+
+      // Calculate expiration time based on selected duration
+      const expirationTime = new Date(startTime);
+      expirationTime.setHours(expirationTime.getHours() + stickyDuration);
+
+      // Update post: sticky = false initially, activate at startTime
+      const post = await Post.findByIdAndUpdate(postId, {
+          sticky: false, // Will activate later
+          stickyUntil: expirationTime,
+          scheduledStickyTime: startTime, // Track the scheduled start time
+          stickyDuration
+      });
+
+      res.json({ 
+          message: `Post scheduled for sticky at ${slotHour}:00 for ${stickyDuration} hours.`,
+          stickyUntil: expirationTime 
+      });
+
+  } catch (error) {
+      res.status(500).json({ error: "Error scheduling sticky post" });
+  }
 };
+
 
 
 // book slot
