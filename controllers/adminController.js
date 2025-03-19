@@ -2,6 +2,7 @@ import Post from "../Model/postModel.js";
 import Admin from "../Model/adminModel.js"
 import Slot from "../Model/slotModel.js";
 import User from "../Model/userModel.js";
+import SlotReservation from "../Model/slotReservationModel.js";
 import bcrypt from "bcrypt";
 import { io } from "../index.js";
 import { sendSMS } from "../utils/sendSMS.js";
@@ -383,8 +384,8 @@ export const pinPost = async (req, res) => {
     res.status(500).json({ error: "Error booking slot" });
 }
 }*/}
-
-export const bookSlot = async (req, res) => {
+// book slot before pin post
+{/*export const bookSlot = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -434,7 +435,49 @@ export const bookSlot = async (req, res) => {
     console.error("Error booking slot:", error);
     res.status(500).json({ error: "Error booking slot" });
   }
+};*/}
+
+export const bookSlot = async (req, res) => {
+  try {
+    const {  startHour, endHour } = req.body;
+    const  userId= req.user.id
+
+    // Check if all requested slots are available
+    const availableSlots = await Slot.find({
+      hour: { $gte: startHour, $lt: endHour },
+      booked: false,
+    });
+
+    if (availableSlots.length !== endHour - startHour) {
+      return res.status(400).json({ error: "One or more slots are already booked" });
+    }
+
+    // Mark slots as temporarily booked (without postId)
+    await Slot.updateMany(
+      { hour: { $gte: startHour, $lt: endHour } },
+      { $set: { booked: true, bookedBy: userId, bookedAt: new Date() } }
+    );
+
+    // Create reservation entry (without postId)
+    const reservation = new SlotReservation({
+      userId, // Reserve under userId instead of postId
+      startHour,
+      endHour,
+      status: "pending",
+    });
+
+    await reservation.save();
+
+    // Emit event to notify frontend
+    io.emit("slotBooked", { startHour, endHour });
+
+    res.json({ message: "Slot reserved successfully!", reservationId: reservation._id });
+  } catch (error) {
+    console.error("Error reserving slot:", error);
+    res.status(500).json({ error: "Error reserving slot" });
+  }
 };
+
 
 // Get all users
 export const getAllUsers = async (req, res) => {

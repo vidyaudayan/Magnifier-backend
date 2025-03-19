@@ -528,6 +528,8 @@ export const getUserMetrics = async (req, res) => {
 
     const postCount = posts.length;
 
+    const totalImpressions = posts.reduce((sum, post) => sum + (post.impressions || 0), 0);
+
     // Update wallet amount
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -564,11 +566,11 @@ export const getUserMetrics = async (req, res) => {
 
     res.status(200).json({
       userName: user.name, // Include user name
-      profilePicture: user.profilePicture, // Include profile picture
+      profilePicture: user.profilePic, // Include profile picture
       postCount,
       totalLikes,
       totalDislikes,
-      walletAmount: user.walletAmount,
+      walletAmount: user.walletAmount,totalImpressions
     });
   } catch (error) {
     res.status(500).json({ message: "Error fetching metrics", error });

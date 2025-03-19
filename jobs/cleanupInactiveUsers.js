@@ -3,6 +3,7 @@ import cron from "node-cron"
 import User from "../Model/userModel.js";
 import Post from "../Model/postModel.js";
 import Slot from "../Model/slotModel.js";
+import SlotReservation from "../Model/slotReservationModel.js";
 
 export const cleanupInactiveUsers = async () => {
   const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
@@ -108,3 +109,25 @@ export const processStickyPosts = async () => {
 
 // ✅ Run every minute
 cron.schedule("*/1 * * * *", processStickyPosts);
+
+
+const clearExpiredReservations = async () => {
+  const expirationTime = new Date(Date.now() - 15 * 60 * 1000); // 15 minutes ago
+
+  const expiredReservations = await SlotReservation.find({
+    status: "pending",
+    createdAt: { $lt: expirationTime },
+  });
+
+  for (const reservation of expiredReservations) {
+    await reservation.deleteOne(); // Delete reservation
+
+    // Optionally reset the Slot if needed
+    await Slot.updateMany(
+      { bookedBy: reservation._id },
+      { booked: false, bookedBy: null, bookedAt: null }
+    );
+  }
+};
+
+setInterval(clearExpiredReservations, 5 * 60 * 1000); // Run every 5 minutes

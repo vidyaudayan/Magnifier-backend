@@ -5,9 +5,17 @@ import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
 import { saveContact } from '../controllers/contactController.js';
 import { getPostById } from '../controllers/postController.js';
+import { createPaymentIntent } from '../controllers/paymentController.js';
 const userRouter = express.Router();
 const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','https://magnifieradmin.netlify.app'];
 
+
+import Stripe from "stripe";
+import Payment from "../Model/paymentModel.js";
+import dotenv from "dotenv";
+
+dotenv.config();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
   const corsOptions = {
     origin: (origin, callback) => {
       if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
@@ -52,8 +60,8 @@ userRouter.get("/userPosts",authMiddleware,getUserPosts)
 userRouter.post("/jobapplication",upload.single("resume"),applyJob)
 userRouter.post("/wallet",authMiddleware,initializeWallet)
 userRouter.get("/usermatrics",authMiddleware, getUserMetrics)
-userRouter.post("/logout",logout)
-
+userRouter.post("/logout",logout)   
+ 
 userRouter.post("/send-otp",sendOTP) 
 userRouter.post("/verify-otp", verifyOTP)
 
@@ -70,4 +78,39 @@ userRouter.post("/contact",upload.single("identityProof"),saveContact)
  
 
 userRouter.patch("/deactivateaccount",authMiddleware, deactivateUserAccount)
-  export default userRouter;      
+
+userRouter.post("/payment",authMiddleware,createPaymentIntent)
+
+userRouter.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  const sig = req.headers["stripe-signature"]; // Get Stripe signature from headers
+
+  try {
+    // Verify Stripe Webhook
+    const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+
+    if (event.type === "payment_intent.succeeded") {
+      const paymentIntent = event.data.object;
+
+      // Find and update payment in DB
+      const updatedPayment = await Payment.findOneAndUpdate(
+        { paymentIntentId: paymentIntent.id },
+        { status: "succeeded" },
+        { new: true }
+      );
+
+      if (updatedPayment) {
+        console.log(`✅ Payment ${paymentIntent.id} succeeded and updated in DB`);
+      } else {
+        console.log(`⚠️ PaymentIntent ${paymentIntent.id} not found in DB`);
+      }
+    }
+
+    res.status(200).send({ received: true });
+  } catch (err) {
+    console.error("🚨 Webhook Error:", err.message);
+    res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+});
+
+
+export default userRouter;         

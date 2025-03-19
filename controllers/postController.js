@@ -817,3 +817,15 @@ if (post.userId.toString() !== req.user.id) {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+
+// Increment impressions
+export const incrementImpression=  async (req, res) => {
+  try {
+    const post = await Post.findByIdAndUpdate(req.params.postId, { $inc: { impressions: 1 } }, { new: true });
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+    res.status(200).json(post);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}

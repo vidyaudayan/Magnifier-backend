@@ -13,6 +13,7 @@ const postSchema = new mongoose.Schema(
     likes: { type: Number, default: 0 },
     stickyDuration: { type: Number, enum: [0,1, 3, 6, 12], default: 0 } ,
     dislikes: { type: Number, default:0 },
+    impressions: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
     comments: [ 
