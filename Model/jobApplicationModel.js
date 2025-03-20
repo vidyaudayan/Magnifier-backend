@@ -5,6 +5,8 @@ const jobApplicationSchema = new mongoose.Schema({
     experience: { type: String },
     qualification: { type: String },
     resume: { type: String }, // File URL for uploaded resumes
+  
+  
   });
    
   const JobApplication = mongoose.model('JobApplication', jobApplicationSchema);
