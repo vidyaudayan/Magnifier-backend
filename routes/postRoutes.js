@@ -51,7 +51,7 @@ postRouter.post('/:postId/comment',authMiddleware, addComment);
 
 postRouter.delete('/delete/:postId',authMiddleware, deletePost);
 
-postRouter.post('/impression/:postId',incrementImpression)
+postRouter.post('/impression/:postId',authMiddleware,incrementImpression)
   
-  
+    
 export default postRouter;   

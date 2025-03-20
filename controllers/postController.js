@@ -820,7 +820,7 @@ if (post.userId.toString() !== req.user.id) {
 
 
 // Increment impressions
-export const incrementImpression=  async (req, res) => {
+{/*export const incrementImpression=  async (req, res) => {
   try {
     const post = await Post.findByIdAndUpdate(req.params.postId, { $inc: { impressions: 1 } }, { new: true });
     if (!post) return res.status(404).json({ message: 'Post not found' });
@@ -828,4 +828,27 @@ export const incrementImpression=  async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-}
+}*/}
+
+export const incrementImpression = async (req, res) => {
+  try {
+    const  userId  = req.user.id; // Assuming userId is sent from the frontend
+
+    const post = await Post.findById(req.params.postId);
+
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    // Check if the logged-in user is the owner of the post
+    if (post.userId.toString() === userId) {
+      return res.status(200).json({ message: "You viewed your own post. Impression not recorded." });
+    }
+
+    // Increment impressions only for other users
+    post.impressions += 1;
+    await post.save();  
+
+    res.status(200).json(post);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
