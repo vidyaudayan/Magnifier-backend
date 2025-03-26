@@ -601,7 +601,7 @@ export const dislikePost = async (req, res) => {
 
 
 // new post owner 
-export const likePosts = async (req, res) => {
+{/*export const likePosts = async (req, res) => {
   try {
     const { postId } = req.params;
     const userId = req.user.id;
@@ -667,7 +667,7 @@ export const likePosts = async (req, res) => {
       );
     }*/}
 
-    res.status(200).json({
+    {/*res.status(200).json({
       message: walletIncremented
         ? "Post liked, post owner's wallet updated"
         : "Post liked, wallet not updated",
@@ -678,10 +678,85 @@ export const likePosts = async (req, res) => {
     console.error("Error liking post:", error);
     res.status(500).json({ message: "Error liking post", error });
   }
+};*/}
+
+export const likePosts = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    // Fetch the post and validate it
+    const post = await Post.findById(postId).populate('userId', 'username profilePic email');
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    // Prevent user from liking their own post
+    if (!post.userId) {
+      return res.status(400).json({ message: "Post does not have a valid userId" });
+    }
+    
+    if (post.userId.toString() === userId) {
+      return res.status(400).json({ message: "You cannot like your own post" });
+    }
+
+    // Fetch user and post owner
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const postOwner = await User.findById(post.userId);
+    if (!postOwner) return res.status(404).json({ message: "Post owner not found" });
+
+    // Check if the user has already reacted
+    const existingReactionIndex = user.reactions.findIndex(
+      (reaction) => reaction.postId.toString() === postId
+    );
+
+    let walletIncremented = false;
+
+    if (existingReactionIndex >= 0) {
+      // If user has already reacted
+      const existingReaction = user.reactions[existingReactionIndex];
+
+      if (existingReaction.reactionType === "like") {
+        // Remove like if the user clicks like again
+        post.likes = Math.max(0, post.likes - 1);
+        user.reactions.splice(existingReactionIndex, 1);
+        postOwner.walletAmount = Math.max(0, postOwner.walletAmount - 10); // Deduct from wallet
+        walletIncremented = true;
+      } else if (existingReaction.reactionType === "dislike") {
+        // Change from dislike to like
+        existingReaction.reactionType = "like";
+        post.dislikes = Math.max(0, post.dislikes - 1);
+        post.likes += 1;
+      }
+    } else {
+      // First-time like
+      user.reactions.push({ postId, reactionType: "like" });
+      post.likes += 1;
+      postOwner.walletAmount += 10;
+      walletIncremented = true;
+    }
+
+    // Save the changes
+    await post.save();
+    await user.save();
+    await postOwner.save();
+
+    res.status(200).json({
+      message: walletIncremented
+        ? "Post liked, post owner's wallet updated"
+        : "Post liked or reaction updated",
+      post,
+      walletAmount: user.walletAmount,
+    });
+  } catch (error) {
+    console.error("Error liking post:", error);
+    res.status(500).json({ message: "Error liking post", error });
+  }
 };
 
 
-export const dislikePosts = async (req, res) => {
+
+{/*export const dislikePosts = async (req, res) => {
   try {
     const { postId } = req.params;
     const userId = req.user.id;
@@ -746,7 +821,7 @@ export const dislikePosts = async (req, res) => {
         "New Like on Your Post",
         `Hi ${post.userId.username}, your post has received a new like from ${user.username}.`
       );
-    }*/}
+    }
 
     res.status(200).json({
       message: walletIncremented
@@ -759,7 +834,82 @@ export const dislikePosts = async (req, res) => {
     console.error("Error disliking post:", error);
     res.status(500).json({ message: "Error disliking post", error });
   }
-}; 
+}; */}
+
+export const dislikePosts = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    // Fetch the post
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    if (!post.userId) {
+      return res.status(400).json({ message: "Post does not have a valid userId" });
+    }
+    
+    if (post.userId.toString() === userId) {
+      return res.status(400).json({ message: "You cannot like your own post" });
+    }
+    
+  
+    // Fetch the user
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Fetch the post owner
+    const postOwner = await User.findById(post.userId);
+    if (!postOwner) return res.status(404).json({ message: "Post owner not found" });
+
+    // Check for an existing reaction
+    const existingReactionIndex = user.reactions.findIndex(
+      (reaction) => reaction.postId.toString() === postId
+    );
+
+    let walletUpdated = false;
+
+    if (existingReactionIndex >= 0) {
+      const existingReaction = user.reactions[existingReactionIndex];
+
+      if (existingReaction.reactionType === "dislike") {
+        // If user clicks dislike again, remove the dislike
+        post.dislikes = Math.max(0, post.dislikes - 1);
+        user.reactions.splice(existingReactionIndex, 1); // Remove reaction
+      } else if (existingReaction.reactionType === "like") {
+        // Change from like to dislike
+        existingReaction.reactionType = "dislike";
+        post.likes = Math.max(0, post.likes - 1);
+        post.dislikes += 1;
+      }
+    } else {
+      // First-time dislike
+      user.reactions.push({ postId, reactionType: "dislike" });
+      post.dislikes += 1;
+
+      // Increment wallet balance of post owner
+      postOwner.walletAmount += 10;
+      walletUpdated = true;
+    }
+
+    // Save the changes
+    await post.save();
+    await user.save();
+    await postOwner.save();
+
+    res.status(200).json({
+      message: walletUpdated
+        ? "Post disliked, post owner's wallet updated"
+        : "Post disliked",
+      post,
+      walletAmount: user.walletAmount,
+    });
+  } catch (error) {
+    console.error("Error disliking post:", error);
+    res.status(500).json({ message: "Error disliking post", error });
+  }
+};
+
 
 
 export const getPostById = async (req, res) => {
