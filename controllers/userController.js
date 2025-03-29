@@ -570,6 +570,8 @@ export const getUserMetrics = async (req, res) => {
       postCount,
       totalLikes,
       totalDislikes,
+      totalLikesReceived: totalLikesOnPosts, // Likes received on user's posts
+  totalDislikesReceived: totalDislikesOnPosts,
       walletAmount: user.walletAmount,totalImpressions
     });
   } catch (error) {
