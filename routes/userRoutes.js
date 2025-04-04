@@ -5,7 +5,7 @@ import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
 import { saveContact } from '../controllers/contactController.js';
 import { getPostById } from '../controllers/postController.js';
-import { createPaymentIntent } from '../controllers/paymentController.js';
+import { createOrder, createPaymentIntent, verifyPayment } from '../controllers/paymentController.js';
 const userRouter = express.Router();
 const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','https://magnifieradmin.netlify.app'];
 
@@ -79,7 +79,12 @@ userRouter.post("/contact",upload.single("identityProof"),saveContact)
 
 userRouter.patch("/deactivateaccount",authMiddleware, deactivateUserAccount)
 
-userRouter.post("/payment",authMiddleware,createPaymentIntent)
+
+// Payment
+userRouter.post("/payment",authMiddleware,createOrder)
+userRouter.post("/create-payment-intent",authMiddleware,createPaymentIntent)
+userRouter.post("/verifypayment",authMiddleware,verifyPayment)
+
 
 userRouter.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
   const sig = req.headers["stripe-signature"]; // Get Stripe signature from headers

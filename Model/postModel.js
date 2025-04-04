@@ -16,6 +16,12 @@ const postSchema = new mongoose.Schema(
     impressions: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
+    postStatus: { 
+      type: String, 
+      enum: ['draft', 'published', 'archived'],
+      default: 'draft'
+    },
+    paymentIntent: { type: String },
     comments: [ 
       {
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -26,8 +32,8 @@ const postSchema = new mongoose.Schema(
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   },
   { timestamps: true }  
-);
+);   
 
 const Post = mongoose.model('Post', postSchema);
-export default Post;  
+export default Post;    
    

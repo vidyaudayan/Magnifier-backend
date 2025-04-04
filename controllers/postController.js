@@ -14,7 +14,7 @@ export const createPost = async (req, res) => {
 
     const file = req.file;
     const userId = req.user.id;
-    const { postType, content} = req.body;
+    const { postType, content,stickyDuration} = req.body;
    // const user = await User.findOne({ username });
    
    // Fetch user by ID
@@ -62,7 +62,8 @@ export const createPost = async (req, res) => {
       //mediaUrl: postType !== 'Text' ? mediaUrl : '', // Store mediaUrl for non-text posts
       content: content || '',
   mediaUrl: mediaUrl || '', 
-
+  stickyDuration: stickyDuration || 0,
+      postStatus: 'draft',
       status: 'pending',
     });
 
@@ -93,6 +94,7 @@ if (user.phoneNumber) {
       message: 'Post created successfully',
       success: true,
       error: false,
+      isDraft: true
     });
   } catch (error) {
     console.error('Error creating post:', error);
@@ -100,6 +102,90 @@ if (user.phoneNumber) {
   }
 };
 
+
+// create draft post new
+
+export const createDraftPost = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'Unauthorized: User ID missing' });
+    }
+
+    // Extract fields from FormData
+    const { content } = req.body; // Now properly extracting content
+    const file = req.file;
+    const userId = req.user.id;
+   
+    let voiceNoteUrl = '';
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    let mediaUrl = null;
+
+    // Handle file upload
+    if (file) {
+      try {
+        const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
+          folder: 'posts',
+          resource_type: 'auto',
+        });
+        mediaUrl = uploadResult.secure_url;
+      } catch (uploadError) {
+        console.error('Error uploading to Cloudinary:', uploadError);
+        return res.status(500).json({ success: false, message: 'Media upload failed' });
+      }
+    }
+
+    // Ensure either content or mediaUrl is provided
+    if (!content && !mediaUrl) {
+      return res.status(400).json({ message: 'Content or media is required' });
+    }
+
+    let postType = 'Text';
+    if (mediaUrl) {
+      // For single file uploads, use file.mimetype instead of req.files[0]
+      postType = file.mimetype.startsWith('image') ? 'Photo' : 'Video';
+    }
+    if (voiceNoteUrl) postType = 'VoiceNote';
+   
+    // Create a new post object
+    const newPost = new Post({
+      userId,
+      postType,
+      content: content || '',
+      mediaUrl: mediaUrl || '', 
+      stickyDuration: 0,
+      postStatus: 'draft',
+      status: 'pending',
+      sticky: false,
+      stickyUntil: null,
+    });
+
+    const savedPost = await newPost.save();
+    res.status(201).json({
+      success: true,
+      message: 'Draft post created successfully',
+      post: {
+        _id: savedPost._id,
+        content: savedPost.content,
+        mediaUrl: savedPost.mediaUrl,
+        postType: savedPost.postType,
+        createdAt: savedPost.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating draft post:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error creating post',
+      error: error.message 
+    });
+  }
+};
 
 // Fetch posts
 export const getPosts = async (req, res) => {

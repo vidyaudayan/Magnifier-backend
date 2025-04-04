@@ -28,6 +28,7 @@
     "multer-storage-cloudinary": "^4.0.0",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
+    "razorpay": "^2.9.6",
     "socket.io": "^4.8.1",
     "stripe": "^17.7.0",
     "twilio": "^5.4.3"
