@@ -250,7 +250,7 @@ export const logout= async (req, res) => {
 
  // Get avilable slots
 
- export const getAvailableSlots= async (req, res) => {
+{/*xport const getAvailableSlots= async (req, res) => {
   try {
     const { duration } = req.query; // 1, 3, 6, or 12 hours
 
@@ -263,7 +263,8 @@ export const logout= async (req, res) => {
     for (let hour = 0; hour <= 24 - duration; hour++) {
         // Check if all hours in this range are available
         const slotRange = await Slot.find({ 
-            hour: { $gte: hour, $lt: hour + parseInt(duration) },
+            //hour: { $gte: hour, $lt: hour + parseInt(duration) },
+            duration: parseInt(duration),
             booked: false 
         });
 
@@ -272,82 +273,69 @@ export const logout= async (req, res) => {
         }
     }
 
-    res.json(availableSlots);
+    res.json( availableSlots.map(slot => ({
+      startHour: slot.startHour,
+      endHour: slot.endHour
+    })));
 } catch (error) {
     console.error("Error fetching slots:", error);
     res.status(500).json({ error: "Error fetching slots" });
 }
-}
-
-// Pin post
-
-{/*export const pinPost= async (req, res) => {
+}*/}
+{/*
+export const getAvailableSlots = async (req, res) => {
   try {
-      const { postId, slotHour,stickyDuration } = req.body;
+    const { duration } = req.query;
 
-      // Check if the slot is available
-      const slot = await Slot.findOne({ hour: slotHour, booked: false });
-      if (!slot) {
-          return res.status(400).json({ message: "Slot already booked" });
-      }
+    if (![1, 3, 6, 12].includes(parseInt(duration))) {
+      return res.status(400).json({ error: "Invalid duration" });
+    }
 
-       // Calculate the start time (when the post should become sticky)
-       const now = new Date();
-       const startTime = new Date(now);
-       startTime.setHours(slotHour, 0, 0, 0);
+    // Directly query for slots of the requested duration that are available
+    const availableSlots = await Slot.find({ 
+      duration: parseInt(duration),
+      booked: false 
+    });
 
-      // Calculate expiration time (3 hours later)
-      const expirationTime = new Date();
-      //expirationTime.setHours(expirationTime.getHours() + 3);
-      expirationTime.setHours(expirationTime.getHours() + stickyDuration);
+    // Format the response
+    const formattedSlots = availableSlots.map(slot => ({
+      startHour: slot.startHour,
+      endHour: slot.endHour
+    }));
 
-      // Pin the post
-      const post = await Post.findByIdAndUpdate(postId, {
-          sticky: true,
-          stickyUntil: expirationTime, stickyDuration
-      });
-
-      // Mark the slot as booked
-      slot.booked = true;
-      slot.bookedBy = postId;
-      slot.bookedAt = new Date();
-      await slot.save();
-
-      res.json({ message: "Post pinned for ${stickyDuration}!", stickyUntil: expirationTime });
+    res.json(formattedSlots);
   } catch (error) {
-      res.status(500).json({ error: "Error pinning post" });
+    console.error("Error fetching slots:", error);
+    res.status(500).json({ error: "Error fetching slots" });
   }
-};*/}
+}*/}
 
-{/*export const pinPost = async (req, res) => {
+export const getAvailableSlots = async (req, res) => {
   try {
-      const { postId, slotHour, stickyDuration } = req.body;
+    const { duration } = req.query;
+    const now = new Date();
 
-      const now = new Date();
-      const startTime = new Date(now);
-      startTime.setHours(slotHour, 0, 0, 0); // Set to the selected slot start time (e.g., 11 AM)
+    // Get all unbooked slots of this duration
+    const slots = await Slot.find({
+      duration: parseInt(duration),
+      $or: [
+        { booked: false },
+        { 
+          $and: [
+              { stickyUntil:{ $lt: now } }, // Pinning duration expired
+              { booked: true }
+          ]
+      },
+      { expiresAt: { $lt: now } } 
+      ]
+    });
 
-      // Calculate expiration time based on selected duration
-      const expirationTime = new Date(startTime);
-      expirationTime.setHours(expirationTime.getHours() + stickyDuration);
-
-      // Update post: sticky = false initially, activate at startTime
-      const post = await Post.findByIdAndUpdate(postId, {
-          sticky: false, // Will activate later
-          stickyUntil: expirationTime,
-          scheduledStickyTime: startTime, // Track the scheduled start time
-          stickyDuration
-      });
-
-      res.json({ 
-          message: `Post scheduled for sticky at ${slotHour}:00 for ${stickyDuration} hours.`,
-          stickyUntil: expirationTime 
-      });
-
+    res.json(slots);
   } catch (error) {
-      res.status(500).json({ error: "Error scheduling sticky post" });
+    console.error("Error fetching slots:", error);
+    res.status(500).json({ error: "Error fetching slots" });
   }
-};*/}
+}    
 
 // pin post new
 
@@ -391,47 +379,7 @@ export const pinPost = async (req, res) => {
 
 
 
-/*export const bookSlot = async (req, res) => {
-  try {
-    const {  startHour, endHour } = req.body;
-    const  userId= req.user.id
-
-    // Check if all requested slots are available
-    const availableSlots = await Slot.find({
-      hour: { $gte: startHour, $lt: endHour },
-      booked: false,
-    });
-
-    if (availableSlots.length !== endHour - startHour) {
-      return res.status(400).json({ error: "One or more slots are already booked" });
-    }
-
-    // Mark slots as temporarily booked (without postId)
-    await Slot.updateMany(
-      { hour: { $gte: startHour, $lt: endHour } },
-      { $set: { booked: true, bookedBy: userId, bookedAt: new Date() } }
-    );
-
-    // Create reservation entry (without postId)
-    const reservation = new SlotReservation({
-      userId, // Reserve under userId instead of postId
-      startHour,
-      endHour,
-      status: "pending",
-    });
-
-    await reservation.save();
-
-    // Emit event to notify frontend
-    io.emit("slotBooked", { startHour, endHour });
-
-    res.json({ message: "Slot reserved successfully!", reservationId: reservation._id });
-  } catch (error) {
-    console.error("Error reserving slot:", error);
-    res.status(500).json({ error: "Error reserving slot" });
-  }
-};*/
-
+{/*
 export const bookSlot = async (req, res) => {
   try {
     const { startHour, endHour,duration,postId } = req.body;
@@ -550,6 +498,78 @@ if (![1, 3, 6, 12].includes(Number(duration))) {
       error: "Internal server error",
       details: error.message
     });
+  }
+};*/}
+
+// Updated bookSlot function
+export const bookSlot = async (req, res) => {
+  try {
+    const { startHour, endHour, duration, postId } = req.body;
+    const userId = req.user.id;
+    const stickyUntil= new Date(Date.now() + duration * 60 * 60 * 1000);
+    const bookingGroupId = new mongoose.Types.ObjectId()
+    // Validate inputs
+    if (![1, 3, 6, 12].includes(Number(duration))) {
+      return res.status(400).json({ error: "Invalid duration" });
+    }
+
+    // Check if slot is already booked
+    const existingBooking = await Slot.findOne({
+      startHour,
+      endHour,
+      booked: true,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (existingBooking) {
+      return res.status(409).json({ 
+        error: "Slot already booked",
+        conflict: existingBooking 
+      });
+    }
+
+    // Book the slot
+    const bookedSlot = await Slot.findOneAndUpdate(
+      { 
+        startHour,
+        endHour,
+        duration,
+        $or: [
+          { booked: false },
+          { stickyUntil:{ $lt: new Date() } }
+        ]
+      },
+      {
+        $set: {
+          booked: true,
+          bookedBy: userId,
+          postId,
+          bookedAt: new Date(),
+          stickyUntil,
+         bookingGroupId,
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000) ,stickyUntil
+        }
+      },
+      { new: true, upsert: true }
+    );
+
+    // Notify all clients
+    io.emit("slotBooked", { 
+      startHour, 
+      endHour,
+      duration,
+      bookedBy: userId,
+      postId
+    });
+
+    res.status(200).json({
+      success: true,
+      slot: bookedSlot
+    });
+
+  } catch (error) {
+    console.error("Booking error:", error);
+    res.status(500).json({ error: "Booking failed" });
   }
 };
 

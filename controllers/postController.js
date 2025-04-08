@@ -62,7 +62,9 @@ export const createPost = async (req, res) => {
       //mediaUrl: postType !== 'Text' ? mediaUrl : '', // Store mediaUrl for non-text posts
       content: content || '',
   mediaUrl: mediaUrl || '', 
-  stickyDuration: stickyDuration || 0,
+ //tickyDuration: stickyDuration || 0,
+ stickyDuration: stickyDuration ? parseInt(stickyDuration) / (60 * 60 * 1000) : 0,
+
       postStatus: 'draft',
       status: 'pending',
     });

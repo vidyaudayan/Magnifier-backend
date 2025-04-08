@@ -9,7 +9,7 @@ import { Server } from "socket.io";
 import userRouter from './routes/userRoutes.js';
 import postRouter from './routes/postRoutes.js';
 import adminRouter from './routes/adminRoutes.js'
-import { cleanupInactiveUsers, resetSlotsDaily, unpinExpiredPosts,processStickyPosts } from './jobs/cleanupInactiveUsers.js';
+import { cleanupInactiveUsers, resetSlotsDaily, unpinExpiredPosts,processStickyPosts, releaseExpiredSlots } from './jobs/cleanupInactiveUsers.js';
 import { generateSlotsForDay } from './jobs/slotgenerate.js';
 import Stripe from "stripe";
  import Payment from './Model/paymentModel.js';
@@ -141,7 +141,7 @@ export { io, server };
 
   
 cleanupInactiveUsers();
-
+releaseExpiredSlots()
 generateSlotsForDay();
 resetSlotsDaily()
 

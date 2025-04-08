@@ -131,3 +131,50 @@ const clearExpiredReservations = async () => {
 };
 
 setInterval(clearExpiredReservations, 5 * 60 * 1000); // Run every 5 minutes
+
+//slot release 
+
+export const releaseExpiredSlots = async () => {
+  try {
+    const now = new Date();
+    
+    // Release expired slots
+    const releasedSlots = await Slot.updateMany(
+      { 
+        booked: true,
+        pinnedUntil: { $lt: now } 
+      },
+      { 
+        $set: { 
+          booked: false,
+          bookedBy: null,
+          postId: null,
+          expiresAt: null
+        } 
+      }
+    );
+
+    // Update associated posts
+    await Post.updateMany(
+      {
+        stickyUntil: { $lt: now },
+       
+      },
+      {
+        $set: {
+          sticky: false,
+          postStatus: 'approved' // Or whatever status you want after pinning ends
+        }
+      }
+    );
+
+    console.log(`Released ${releasedSlots.nModified} expired slots`);
+  } catch (error) {
+    console.error('Error releasing slots:', error);
+  }
+};
+
+cron.schedule('0 * * * *', async () => {
+  console.log('Running slot release job...');
+  await releaseExpiredSlots();
+});
