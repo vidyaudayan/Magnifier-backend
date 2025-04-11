@@ -1,5 +1,5 @@
 import express from 'express';
-import { createPost,getPosts,likePosts,dislikePosts,addComment ,getPostById, deletePost, incrementImpression, createDraftPost} from '../controllers/postController.js';
+import { createPost,getPosts,likePosts,dislikePosts,addComment ,getPostById, deletePost, incrementImpression, createDraftPost, updateStickyTime} from '../controllers/postController.js';
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware, authMiddleware1 } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
@@ -53,5 +53,5 @@ postRouter.delete('/delete/:postId',authMiddleware, deletePost);
 
 postRouter.post('/impression/:postId',authMiddleware,incrementImpression)
   
-      
+postRouter.put('/updatestickytime',authMiddleware,updateStickyTime)    
 export default postRouter;   

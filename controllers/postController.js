@@ -14,7 +14,7 @@ export const createPost = async (req, res) => {
 
     const file = req.file;
     const userId = req.user.id;
-    const { postType, content,stickyDuration} = req.body;
+    const { postType, content,stickyDuration,timezone} = req.body;
    // const user = await User.findOne({ username });
    
    // Fetch user by ID
@@ -67,6 +67,7 @@ export const createPost = async (req, res) => {
 
       postStatus: 'draft',
       status: 'pending',
+       timezone: timezone || "UTC"
     });
 
     // Save to database and populate fields
@@ -114,7 +115,7 @@ export const createDraftPost = async (req, res) => {
     }
 
     // Extract fields from FormData
-    const { content } = req.body; // Now properly extracting content
+    const { content,timezone } = req.body; // Now properly extracting content
     const file = req.file;
     const userId = req.user.id;
    
@@ -164,6 +165,7 @@ export const createDraftPost = async (req, res) => {
       status: 'pending',
       sticky: false,
       stickyUntil: null,
+       timezone: timezone || "UTC"
     });
 
     const savedPost = await newPost.save();
@@ -1088,5 +1090,39 @@ export const incrementImpression = async (req, res) => {
     res.status(200).json(post);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// update sticky time
+
+export const updateStickyTime = async (req, res) => {
+  try {
+    const { postId, stickyStartUTC,stickyEndUTC } = req.body;
+
+    if (!postId || !stickyStartUTC || !stickyEndUTC) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const updatedPost = await Post.findByIdAndUpdate(
+      postId,
+      {
+        stickyStartUTC,
+        stickyEndUTC,
+        status: "published" // Change status from draft to published
+      },
+      { new: true }
+    );
+
+    if (!updatedPost) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    return res.status(200).json({
+      message: "Sticky time updated successfully",
+      post: updatedPost
+    });
+  } catch (error) {
+    console.error("Error updating sticky time:", error);
+    return res.status(500).json({ error: "Server error" });
   }
 };

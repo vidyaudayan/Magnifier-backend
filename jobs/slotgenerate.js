@@ -42,7 +42,7 @@ export const generateSlotsForDay = async () => {
   };*/}
 
 
-  export const generateSlotsForDay = async () => {
+  {/*export const generateSlotsForDay = async () => {
     const durations = [1, 3, 6, 12];
     const slots = [];
   
@@ -60,4 +60,51 @@ export const generateSlotsForDay = async () => {
     });
   
     await Slot.insertMany(slots);
+  };*/}
+
+
+  export const generateSlotsForDay = async () => {
+    try {
+      await Slot.deleteMany({});
+      
+      const durations = [1, 3, 6, 12];
+      const slots = [];
+  
+      durations.forEach(duration => {
+        // For 1-hour slots, create all 24 slots
+        if (duration === 1) {
+          for (let hour = 0; hour < 24; hour++) {
+            slots.push({
+              hour,
+              duration,
+              startHour: hour,
+              endHour: hour + duration,
+              type: `${duration}-hour`,
+              booked: false
+            });
+          }
+        } 
+        // For longer durations, create non-overlapping slots
+        else {
+          for (let hour = 0; hour < 24; hour += duration) {
+            if (hour + duration <= 24) {
+              slots.push({
+                hour,
+                duration,
+                startHour: hour,
+                endHour: hour + duration,
+                type: `${duration}-hour`,
+                booked: false
+              });
+            }
+          }
+        }
+      });
+  
+      await Slot.insertMany(slots);
+      console.log(`Generated ${slots.length} non-overlapping slots`);
+    } catch (error) {
+      console.error('Error generating slots:', error);
+      throw error;
+    }
   };

@@ -4,7 +4,7 @@ import User from "../Model/userModel.js";
 import Post from "../Model/postModel.js";
 import Slot from "../Model/slotModel.js";
 import SlotReservation from "../Model/slotReservationModel.js";
-
+import mongoose from "mongoose";
 export const cleanupInactiveUsers = async () => {
   const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
   //const THIRTY_DAYS_IN_MS = 1 * 60 * 1000
@@ -134,47 +134,64 @@ setInterval(clearExpiredReservations, 5 * 60 * 1000); // Run every 5 minutes
 
 //slot release 
 
+// Run every 5 minutes
 export const releaseExpiredSlots = async () => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const now = new Date();
     
-    // Release expired slots
-    const releasedSlots = await Slot.updateMany(
-      { 
-        booked: true,
-        pinnedUntil: { $lt: now } 
-      },
-      { 
-        $set: { 
-          booked: false,
-          bookedBy: null,
-          postId: null,
-          expiresAt: null
-        } 
-      }
-    );
+    // Find all slots that need releasing
+    const slotsToRelease = await Slot.find({
+      $or: [
+        { booked: true, expiresAt: { $lt: now } },
+        { booked: true, pinnedUntil: { $lt: now } }
+      ]
+    }).session(session);
 
-    // Update associated posts
-    await Post.updateMany(
+    if (slotsToRelease.length === 0) {
+      await session.commitTransaction();
+      return;
+    }
+
+    // Release the slots
+    await Slot.updateMany(
       {
-        stickyUntil: { $lt: now },
-       
+        _id: { $in: slotsToRelease.map(s => s._id) }
       },
       {
         $set: {
-          sticky: false,
-          postStatus: 'approved' // Or whatever status you want after pinning ends
+          booked: false,
+          bookedBy: null,
+          postId: null,
+          expiresAt: null,
+          pinnedUntil: null
         }
-      }
+      },
+      { session }
     );
 
-    console.log(`Released ${releasedSlots.nModified} expired slots`);
+    // Update associated posts
+    const postIds = slotsToRelease.map(s => s.postId).filter(id => id);
+    if (postIds.length > 0) {
+      await Post.updateMany(
+        { _id: { $in: postIds } },
+        { $set: { sticky: false, stickyUntil: null } },
+        { session }
+      );
+    }
+
+    await session.commitTransaction();
+    io.emit("slotsReleased", { count: slotsToRelease.length });
+    
   } catch (error) {
-    console.error('Error releasing slots:', error);
+    await session.abortTransaction();
+    console.error('Slot release error:', error);
+  } finally {
+    session.endSession();
   }
 };
 
-cron.schedule('0 * * * *', async () => {
-  console.log('Running slot release job...');
-  await releaseExpiredSlots();
-});
+// Run every 5 minutes
+cron.schedule('*/5 * * * *', releaseExpiredSlots);

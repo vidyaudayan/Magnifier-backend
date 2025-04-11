@@ -16,9 +16,12 @@ const postSchema = new mongoose.Schema(
     impressions: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
+    stickyStartUTC: { type: Date,default: null }, 
+    stickyEndUTC: { type: Date, default: null},   
+    timezone:  { type: String, default: 'UTC' },  
     postStatus: { 
       type: String, 
-      enum: ['draft', 'published', 'archived'],
+      enum: ['draft', 'published', 'archived','scheduled'],
       default: 'draft'
     },
     paymentIntent: { type: String },

@@ -1,7 +1,7 @@
 import express from 'express';
 
 import cors from 'cors'
-import { adminSingin, adminSingup, approvePost, fetchPendingPosts, RejectPost, updatePostStatus,getAvailableSlots,pinPost, bookSlot, getAllUsers, getAllPosts } from '../controllers/adminController.js';
+import { adminSingin, adminSingup, approvePost, fetchPendingPosts, RejectPost, updatePostStatus,getAvailableSlots,pinPost, bookSlot, getAllUsers, getAllPosts, getApprovedPosts } from '../controllers/adminController.js';
 import { logout } from '../controllers/adminController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import { getJobApplications } from '../controllers/jobapplyController.js';
@@ -55,5 +55,7 @@ adminRouter.get("/get-allusers",getAllUsers)
 adminRouter.get("/get-allposts",getAllPosts)
 adminRouter.get("/getJobApplications", getJobApplications)
 adminRouter.get("/getallcontacts", getAllContacts)
+
+adminRouter.get("/get-approved-posts", getApprovedPosts)
 
 export default adminRouter  

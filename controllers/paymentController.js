@@ -179,7 +179,8 @@ export const verifyPayment = async (req, res) => {
       amount,
       duration,
       startHour,
-      endHour
+      endHour,stickyStartUTC,
+      stickyEndUTC
     } = req.body;
 
     // Validate required fields
@@ -230,15 +231,18 @@ export const verifyPayment = async (req, res) => {
       return res.status(400).json({ error: 'Payment record not found' });
     }
 
+   
     // Update post
     const updatedPost = await Post.findByIdAndUpdate(
       postId,
       {
         status: 'pending',
         sticky: true,
-        stickyUntil: new Date(Date.now() + duration * 60 * 60 * 1000),
+        //stickyUntil: new Date(Date.now() + duration * 60 * 60 * 1000),
+        stickyFrom: new Date(stickyStartUTC), // optional but good
+        stickyUntil: new Date(stickyEndUTC),
         stickyDuration: duration,
-        postStatus: 'pinned',
+        postStatus: 'published',
         paymentIntent: razorpay_payment_id
       },
       { new: true }
@@ -280,5 +284,32 @@ export const verifyPayment = async (req, res) => {
       error: 'Payment verification failed',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+};
+
+
+// controllers/userController.js
+export const handlePaymentFailure = async (req, res) => {
+  const { postId, paymentId, reason } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // Optionally, update your DB with a failed payment record
+    await Payment.create({
+      userId,
+      postId,
+      paymentId,
+      status: "failed",
+      reason,
+      timestamp: new Date()
+    });
+
+    // You might also clean up temporary post if needed
+    // await Post.deleteOne({ _id: postId, user: userId, isPinned: false });
+
+    return res.json({ success: true, message: "Failure logged" });
+  } catch (error) {
+    console.error("Failed to log payment failure", error);
+    return res.status(500).json({ success: false, error: "Server error" });
   }
 };
