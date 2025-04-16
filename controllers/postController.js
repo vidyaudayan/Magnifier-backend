@@ -1015,7 +1015,7 @@ export const getPostById = async (req, res) => {
     }*/}
 
     // Fetch the post from DB
-    const post = await Post.findById(id);
+    const post = await Post.findById(id).populate('userId', 'username profilePic');
 
 
     if (!post) {
