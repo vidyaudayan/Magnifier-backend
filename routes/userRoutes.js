@@ -17,7 +17,8 @@ import { validateState } from '../middlewares/stateValidator.js';
 
 dotenv.config();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  const corsOptions = {
+  
+{/*const corsOptions = {
     origin: (origin, callback) => {
       if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
         callback(null, true);
@@ -29,7 +30,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     optionsSuccessStatus: 200 ,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
   allowedMethods: ['GET', 'POST', 'PUT', 'DELETE'],     
-  };    
+  }; */}   
     
 
 {/*const corsOptions = {
@@ -38,6 +39,21 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     credentials: true,               // Allow credentials (cookies, etc.)
     optionsSuccessStatus: 200        // For legacy browser support
   };*/}
+
+  const corsOptions = {
+    origin: (origin, callback) => {
+      if (allowedOrigins.includes(origin) || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    optionsSuccessStatus: 200,
+  };
+  
 
   userRouter.use(cors(corsOptions));
 
