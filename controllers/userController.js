@@ -27,29 +27,36 @@ const signup = async (req, res) => {
     const {
       name,
       username,
-      fathersName,
+      fathersName, dateOfBirth,
       age,
       gender,
       vidhanSabha,
-      wardNumber,
+      wardNumber,state,
       email,
-      password,
+      password, phone,
       phoneNumber,
     } = req.body;
+    const userAge = age || (dateOfBirth ? calculateAge(new Date(dateOfBirth)) : null);
+    
+    // Map phone to phoneNumber if needed
+    const userPhone = phoneNumber || phone;
 
     // Validate mandatory fields
     if (
       !name ||
       !username ||
-      !age ||
-      !gender ||
+     
       !email ||
-      !password ||
-      !phoneNumber
-    ) {
+      !password || !userPhone)
+     {
       return res
         .status(400)
         .json({ message: "Please provide all required fields." });
+    }
+
+    const validStates = ['Delhi', 'Bihar', 'West Bengal'];
+    if (!validStates.includes(state)) {
+      return res.status(400).json({ message: "Invalid state provided." });
     }
 
     // Check if user already exists
@@ -68,13 +75,13 @@ const signup = async (req, res) => {
       name,
       username,
       fathersName,
-      age,
+      age: userAge,
       gender,
-      wardNumber: wardNumber || null,
-      vidhanSabha,
+      wardNumber: wardNumber ? Number(wardNumber) : null,
+      vidhanSabha,state,
       email,
       password: hashedPassword,
-      phoneNumber,
+      phoneNumber: userPhone,
       isEmailVerified: false,
       isPhoneVerified: false,
       isVerified: true,
@@ -97,7 +104,7 @@ const signup = async (req, res) => {
         "Welcome to Magnifier - Your Journey to Greatness Begins! 🌟",null,
         getSignupEmailTemplate(savedUser.username)
       );
-    }
+    } 
 
      // Send welcome notification SMS
      if (savedUser.phoneNumber) {
@@ -128,6 +135,16 @@ const signup = async (req, res) => {
   }
 };
 
+
+function calculateAge(birthDate) {
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
 // job application
 
 {
@@ -1028,7 +1045,7 @@ export const sendMobileOtp = (req, res) => {
 
 // verify mobile otp send
 
-export const verifyMobileOtp = async (req, res) => {
+{/*export const verifyMobileOtp = async (req, res) => {
   let { phoneNumber, otp } = req.body;
   phoneNumber = normalizePhoneNumber(phoneNumber);
   console.log("verify req", req.body);
@@ -1047,83 +1064,70 @@ export const verifyMobileOtp = async (req, res) => {
   }
 
   res.status(400).json({ error: "Invalid OTP" });
-};
+};*/}
 
-// new mobile otp
-
-{
-  /*const normalizePhoneNumber = (phoneNumber) => {
-  phoneNumber = phoneNumber.replace(/[^0-9]/g, ''); // Remove non-numeric characters
-
-  if (phoneNumber.startsWith('91') && phoneNumber.length === 12) {
-      return `+${phoneNumber}`; // Already in E.164 format
-  } else if (phoneNumber.length === 10) {
-      return `+91${phoneNumber}`; // Add country code if missing
-  }
-  return null; // Return null for invalid numbers
-};
-
-
-export const sendMobileOtp = async (req, res) => {
-  console.log('Request body:', req.body); // Debugging log
-  let { phoneNumber } = req.body;
-  phoneNumber = normalizePhoneNumber(phoneNumber);
-  
-  if (!phoneNumber) return res.status(400).json({ error: 'Phone number is required' });
-
-  // Ensure it's in E.164 format for Twilio
- // const formattedPhoneNumber = `+91${phoneNumber}`;
-  //console.log("Sending OTP to:", formattedPhoneNumber);
-
-  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit OTP
-  const otpExpiration = new Date(Date.now() + 5 * 60 * 1000); // OTP valid for 5 minutes
-
+export const verifyMobileOtp = async (req, res) => {
   try {
-      // Update OTP in the database
-      const user = await User.findOneAndUpdate(
-          { phoneNumber },
-          { phoneOtp: otp, phoneOtpExpiration: otpExpiration },
-          { new: true, upsert: true } // Create user if not exists
-      );
-
-      console.log(`Generated OTP for ${phoneNumber}: ${otp}`);
-
-      // Send OTP via Twilio
-      await client.messages.create({
-          body: `Your OTP is ${otp}. It is valid for 5 minutes.`,
-          from: process.env.TWILIO_PHONE_NUMBER,
-          to: phoneNumber
+    let { phoneNumber, otp } = req.body;
+    
+    // Validate input
+    if (!phoneNumber || !otp) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Phone number and OTP are required" 
       });
+    }
 
-      res.json({ message: 'OTP sent successfully' });
+    // Normalize phone number
+    phoneNumber = normalizePhoneNumber(phoneNumber);
+    console.log("Verification request for:", phoneNumber);
+
+    // Verify OTP
+    const storedOtp = otpMap.get(phoneNumber);
+    console.log(`Stored OTP: ${storedOtp}, Received OTP: ${otp}`);
+
+    if (!storedOtp || storedOtp !== otp) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid OTP" 
+      });
+    }
+
+    // Find or create user
+    let user = await User.findOne({ phoneNumber });
+    if (!user) {
+      user = new User({ phoneNumber });
+      await user.save();
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, phoneNumber }, 
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    // Clear used OTP
+    otpMap.delete(phoneNumber);
+
+    return res.json({
+      success: true,
+      message: "OTP verified successfully",
+      token,
+      user: {
+        id: user._id,
+        phoneNumber: user.phoneNumber
+      }
+    });
+
   } catch (error) {
-      console.error('Error sending OTP:', error);
-      res.status(500).json({ error: 'Failed to send OTP' });
+    console.error("OTP verification error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error"
+    });
   }
 };
-
-const verifyMobileOtp = async (req, res) => {
-  try {
-      const { phoneNumber, otp } = req.body;
-
-      // Check if OTP is valid
-      const otpRecord = await OtpModel.findOne({ phoneNumber, otp });
-
-      if (!otpRecord) {
-          return res.status(400).json({ message: "Invalid OTP" });
-      }
-
-      // OTP is valid, mark phone number as verified
-      await OtpModel.deleteOne({ phoneNumber }); // Optional: remove OTP after successful verification
-
-      return res.status(200).json({ message: "OTP verified successfully" });
-
-  } catch (error) {
-      console.error("Error verifying OTP:", error);
-      return res.status(500).json({ message: "Internal Server Error" });
-  }
-};*/
-}
 
 // Deactivate account
 

@@ -13,6 +13,7 @@ const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173'
 import Stripe from "stripe";
 import Payment from "../Model/paymentModel.js";
 import dotenv from "dotenv";
+import { validateState } from '../middlewares/stateValidator.js';
 
 dotenv.config();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -46,7 +47,7 @@ userRouter.options('*', cors(corsOptions));
 
 userRouter.use("/user",userRouter)
 
-userRouter.post("/signup", signup);
+userRouter.post("/signup",validateState, signup);
 
 userRouter.post("/login", login); 
 userRouter.get("/userprofile",authMiddleware, getProfile); 

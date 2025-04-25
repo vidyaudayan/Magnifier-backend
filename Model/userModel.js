@@ -16,7 +16,12 @@ const userSchema = new mongoose.Schema(
     isPhoneVerified: { type: Boolean, default: false }, // Status for mobile verification
     phoneOtp: { type: String }, // Stores the generated mobile OTP
     phoneOtpExpiration: { type: Date }, // Expiration for mobile OTP
-
+    state: { 
+      type: String, 
+      required: true,
+      enum: ['Delhi', 'Bihar', 'West Bengal'], 
+      default: 'Delhi' 
+    },
     email: { type: String, required: true,  },
     isEmailVerified: { type: Boolean, default: false }, 
     
@@ -27,7 +32,7 @@ const userSchema = new mongoose.Schema(
     walletAmount: { type: Number, default: 0 },
     isFirstLogin: { type: Boolean, default: true },
     //reactions: [{ postId: String, reactionType: String }] ,
-    reactions: [ 
+    reactions: [  
       {
           postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' }, // Refers to the post
           reactionType: { type: String, enum: ['like', 'dislike'] },   // Reaction type
