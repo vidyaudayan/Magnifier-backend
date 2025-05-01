@@ -1176,4 +1176,57 @@ export const getProfileById = async (req, res) => {
   }
 };
 
+// Delete profile pic
+export const deleteProfilePic = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    // 1. Find the user first
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // 2. Check if user has a profile picture
+    if (!user.profilePic) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "No profile picture exists to delete" 
+      });
+    }
+
+    // 3. Extract public ID from Cloudinary URL
+    const profilePicUrl = user.profilePic;
+    const publicId = profilePicUrl.split('/').slice(-2).join('/').split('.')[0];
+
+    // 4. Delete from Cloudinary
+    try {
+      await cloudinaryInstance.uploader.destroy(publicId);
+    } catch (cloudinaryError) {
+      console.error("Cloudinary deletion error:", cloudinaryError);
+      // Continue with deletion even if Cloudinary fails
+      // You might want to handle this differently in production
+    }
+
+    // 5. Update user in database
+    user.profilePic = null;
+    await user.save();
+
+    // 6. Return success response
+    res.status(200).json({ 
+      success: true,
+      message: "Profile picture deleted successfully",
+      user
+    });
+
+  } catch (err) {
+    console.error("Error deleting profile picture:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "Server error", 
+      details: err.message 
+    });
+  } 
+};
+
 export default signup;

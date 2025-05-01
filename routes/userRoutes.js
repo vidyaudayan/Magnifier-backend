@@ -1,5 +1,5 @@
 import express from 'express';
-import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic, sendMobileOtp, verifyMobileOtp, deactivateUserAccount, getProfileById} from '../controllers/userController.js'; // Adjust the path
+import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic, sendMobileOtp, verifyMobileOtp, deactivateUserAccount, getProfileById, deleteProfilePic} from '../controllers/userController.js'; // Adjust the path
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
@@ -10,13 +10,13 @@ const userRouter = express.Router();
 const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','https://magnifieradmin.netlify.app'];
 
 
-import Stripe from "stripe";
+
 import Payment from "../Model/paymentModel.js";
 import dotenv from "dotenv";
 import { validateState } from '../middlewares/stateValidator.js';
 
 dotenv.config();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
   
 {/*const corsOptions = {
     origin: (origin, callback) => {
@@ -92,7 +92,7 @@ userRouter.get("/posts/:userId", getSearchedUserPosts);
 
 userRouter.post("/reset-password", resetPassword);
 userRouter.post("/contact",upload.single("identityProof"),saveContact)
- 
+ userRouter.delete("/delete-profilepic",authMiddleware,deleteProfilePic)
 
 userRouter.patch("/deactivateaccount",authMiddleware, deactivateUserAccount)
 
@@ -103,36 +103,7 @@ userRouter.post("/create-payment-intent",authMiddleware,createPaymentIntent)
 userRouter.post("/verifypayment",authMiddleware,verifyPayment)
 userRouter.post('/payment-failed', authMiddleware,handlePaymentFailure);
 
-userRouter.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
-  const sig = req.headers["stripe-signature"]; // Get Stripe signature from headers
 
-  try {
-    // Verify Stripe Webhook
-    const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-
-    if (event.type === "payment_intent.succeeded") {
-      const paymentIntent = event.data.object;
-
-      // Find and update payment in DB
-      const updatedPayment = await Payment.findOneAndUpdate(
-        { paymentIntentId: paymentIntent.id },
-        { status: "succeeded" },
-        { new: true }
-      );
-
-      if (updatedPayment) {
-        console.log(`✅ Payment ${paymentIntent.id} succeeded and updated in DB`);
-      } else {
-        console.log(`⚠️ PaymentIntent ${paymentIntent.id} not found in DB`);
-      }
-    }
-
-    res.status(200).send({ received: true });
-  } catch (err) {
-    console.error("🚨 Webhook Error:", err.message);
-    res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-});
 
 
 export default userRouter;         

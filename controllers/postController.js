@@ -194,7 +194,7 @@ export const createDraftPost = async (req, res) => {
 // Fetch posts
 export const getPosts = async (req, res) => {
   try {
-    const posts = await Post.find().sort({ sticky: -1,stickyUntil: -1, createdAt: -1 }).populate('userId', 'username profilePic')
+    const posts = await Post.find().sort({ sticky: -1,stickyUntil: -1, createdAt: -1 })
     //.populate('userId', 'username profilePic')
     //.populate('comments.userId', 'username')
     //.populate('comments.userId', 'username profilePic'); 
@@ -205,8 +205,8 @@ export const getPosts = async (req, res) => {
     })
     .populate({
       path: 'comments.userId',
-      select: 'username profilePic' // Fetch only necessary fields for comments
-    });
+      select: '_id  username profilePic' // Fetch only necessary fields for comments
+    })
     res.status(200).json({ posts });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching posts', error });
@@ -861,8 +861,12 @@ export const getPostById = async (req, res) => {
     }*/}
 
     // Fetch the post from DB
-    const post = await Post.findById(id).populate('userId', 'username profilePic');
-
+    const post = await Post.findById(id).populate('userId', 'username profilePic') .populate('userId', 'username profilePic')
+    .populate({
+      path: 'comments.userId',
+      select: '_id  username profilePic'
+    });
+    
 
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
@@ -874,7 +878,7 @@ export const getPostById = async (req, res) => {
     console.error('Error fetching post:', error);
     res.status(500).json({ error: 'Server error' });
   }
-};
+};   
 
 // delete post 
 
@@ -1046,3 +1050,73 @@ export const unifiedSearch = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
+export const editComment = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { postId, commentId } = req.params;
+    const { comment } = req.body;
+
+    if (!comment || typeof comment !== "string" || !comment.trim()) {
+      return res.status(400).json({ message: "Invalid comment data" });
+    }
+
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    // Find the comment
+    const commentToEdit = post.comments.id(commentId);
+    if (!commentToEdit) return res.status(404).json({ message: 'Comment not found' });
+
+    // Check if user is the comment author
+    if (commentToEdit.userId.toString() !== userId) {
+      return res.status(403).json({ message: 'Unauthorized to edit this comment' });
+    }
+
+    // Update the comment
+    commentToEdit.comment = comment;
+    commentToEdit.updatedAt = new Date();
+    await post.save();
+
+    const updatedPost = await Post.findById(postId)
+      .populate('userId', 'username profilePic')
+      .populate('comments.userId', 'username profilePic');
+
+    res.status(200).json(updatedPost);
+  } catch (error) {
+    console.error("Error in editComment controller:", error);
+    res.status(500).json({ message: 'Error editing comment', error });
+  }
+};
+
+export const deleteComment = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { postId, commentId } = req.params;
+
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    // Find the comment
+    const commentToDelete = post.comments.id(commentId);
+    if (!commentToDelete) return res.status(404).json({ message: 'Comment not found' });
+
+    // Check if user is the comment author or post author
+    if (commentToDelete.userId.toString() !== userId && post.userId.toString() !== userId) {
+      return res.status(403).json({ message: 'Unauthorized to delete this comment' });
+    }
+
+    // Remove the comment
+    post.comments.pull(commentId);
+    await post.save();
+
+    const updatedPost = await Post.findById(postId)
+      .populate('userId', 'username profilePic')
+      .populate('comments.userId', 'username profilePic');
+
+    res.status(200).json(updatedPost);
+  } catch (error) {
+    console.error("Error in deleteComment controller:", error);
+    res.status(500).json({ message: 'Error deleting comment', error });
+  }
+};
