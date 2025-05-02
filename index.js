@@ -35,21 +35,9 @@ app.use(bodyParser.json())
   optionsSuccessStatus: 200               // Allow credentials (cookies, etc.)
 };*/}
 
-const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','http://localhost:5174','https://magnifieradmin.netlify.app'];
+const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','http://localhost:5174','https://magnifieradmin.netlify.app','https://magnifier-platform.com/'];
 
-  {/*const corsOptions = {
-    origin: (origin, callback) => {
-      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }  
-    },
-    credentials: true,   
-    optionsSuccessStatus: 200 ,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
-  allowedMethods: ['GET', 'POST', 'PUT', 'DELETE'],     
-  };*/}
+
   
   const corsOptions = {
     origin: (origin, callback) => {
