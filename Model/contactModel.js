@@ -44,7 +44,7 @@ const contactSchema = new mongoose.Schema(
     email: {
       type: String,
       required: true,
-      unique: true, // Ensures email is not repeated
+      
       lowercase: true,
       trim: true,
       validate: {

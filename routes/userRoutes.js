@@ -82,20 +82,20 @@ userRouter.post("/logout",logout)
 userRouter.post("/send-otp",sendOTP) 
 userRouter.post("/verify-otp", verifyOTP)
 
-userRouter.post("/send-mobileotp",sendMobileOtp)
+userRouter.post("/send-mobileotp", sendMobileOtp)
 userRouter.post("/verify-mobileotp", verifyMobileOtp)
 
 userRouter.post("/forgot-password", forgotPassword);
 
 userRouter.get("/search",userSearch)
 userRouter.get("/posts/:userId", getSearchedUserPosts);
-
+  
 userRouter.post("/reset-password", resetPassword);
 userRouter.post("/contact",upload.single("identityProof"),saveContact)
  userRouter.delete("/delete-profilepic",authMiddleware,deleteProfilePic)
 
 userRouter.patch("/deactivateaccount",authMiddleware, deactivateUserAccount)
-
+ 
 
 // Payment
 userRouter.post("/payment",authMiddleware,createOrder)

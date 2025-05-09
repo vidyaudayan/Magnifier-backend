@@ -12,6 +12,9 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.802.0",
+    "@aws-sdk/lib-storage": "^3.803.0",
+    "@aws-sdk/s3-request-presigner": "^3.802.0",
     "@vitalets/google-translate-api": "^9.2.1",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
@@ -22,6 +25,8 @@
     "crypto": "^1.0.1",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
+    "express-validator": "^7.2.1",
+    "firebase-admin": "^13.3.0",
     "jsonwebtoken": "^9.0.2",
     "moment-timezone": "^0.5.48",
     "mongoose": "^8.8.2",

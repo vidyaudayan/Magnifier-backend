@@ -1,12 +1,15 @@
-import Post from '../Model/postModel.js';
-import { cloudinaryInstance } from '../config/cloudinary.js';
-import User from '../Model/userModel.js'
-import { sendNotificationEmail } from '../config/notifications.js';
-import translate from '@vitalets/google-translate-api'
-import { sendSMS } from '../utils/sendSMS.js';
-import getPostCreationEmailTemplate from '../templates/createPostMessage.js';
+import Post from "../Model/postModel.js";
+import { cloudinaryInstance } from "../config/cloudinary.js";
+import User from "../Model/userModel.js";
+import { sendNotificationEmail } from "../config/notifications.js";
+import translate from "@vitalets/google-translate-api";
+import { sendSMS } from "../utils/sendSMS.js";
+import getPostCreationEmailTemplate from "../templates/createPostMessage.js";
+import { uploadToS3 } from "../utils/s3Uploader.js";
+
 // create post new
-export const createPost = async (req, res) => {
+{
+  /*export const createPost = async (req, res) => {
   try {
     if (!req.user || !req.user.id) {
       return res.status(401).json({ message: 'Unauthorized: User ID missing' });
@@ -45,16 +48,12 @@ export const createPost = async (req, res) => {
       return res.status(400).json({ message: 'Content or media is required' });
     }
 
-    {/*let stickyUntil = null;
-    const ONE_HOUR = 3600000;
-    if (stickyDuration && parseInt(stickyDuration) <= ONE_HOUR) {
-      stickyUntil = new Date(Date.now() + parseInt(stickyDuration));
-    }*/}
+    
 
 
     
    
-    // Create a new post object
+ 
     const newPost = new Post({
       userId,
       postType,
@@ -103,27 +102,23 @@ if (user.phoneNumber) {
     console.error('Error creating post:', error);
     res.status(500).json({ message: 'Error creating post', error });
   }
-};
+};*/
+}
+// amazon s3
 
-
-// create draft post new
-
-export const createDraftPost = async (req, res) => {
+export const createPost = async (req, res) => {
   try {
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: 'Unauthorized: User ID missing' });
+    if (!req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized: User ID missing" });
     }
 
-    // Extract fields from FormData
-    const { content,timezone } = req.body; // Now properly extracting content
-    const file = req.file;
+    const { file } = req;
+    const { postType, content, stickyDuration, timezone } = req.body;
     const userId = req.user.id;
-   
-    let voiceNoteUrl = '';
-    
+
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     let mediaUrl = null;
@@ -131,62 +126,167 @@ export const createDraftPost = async (req, res) => {
     // Handle file upload
     if (file) {
       try {
-        const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
-          folder: 'posts',
-          resource_type: 'auto',
-        });
-        mediaUrl = uploadResult.secure_url;
+        // Additional file validation
+        if (!file.buffer || file.buffer.length === 0) {
+          throw new Error("File buffer is empty");
+        }
+        let folder = "images";
+        if (file.mimetype.startsWith("audio/")) {
+          folder = "audios";
+        }
+
+        const uploadResult = await uploadToS3(file,folder);
+        mediaUrl = uploadResult.url;
       } catch (uploadError) {
-        console.error('Error uploading to Cloudinary:', uploadError);
-        return res.status(500).json({ success: false, message: 'Media upload failed' });
+        console.error("Upload error:", uploadError);
+        return res.status(400).json({
+          success: false,
+          message: uploadError.message || "File upload failed",
+          details:
+            process.env.NODE_ENV === "development"
+              ? uploadError.stack
+              : undefined,
+        });
+      }
+    }
+
+    // Validate at least content or media exists
+    if (!content && !mediaUrl) {
+      return res
+        .status(400)
+        .json({ message: "Either content or media is required" });
+    }
+
+    // Create and save post
+    const newPost = new Post({
+      userId,
+      postType,
+      content: content || "",
+      mediaUrl: mediaUrl || "",
+      stickyDuration: stickyDuration
+        ? parseInt(stickyDuration) / (60 * 60 * 1000)
+        : 0,
+      postStatus: "draft",
+      status: "pending",
+      timezone: timezone || "UTC",
+    });
+
+    const savedPost = await newPost.save();
+    const populatedPost = await Post.findById(savedPost._id).populate(
+      "userId",
+      "username profilePic"
+    );
+
+    // Send notifications 
+    
+    if (user.email) {
+      await sendNotificationEmail(
+        user.email,"Your Voice Matters – Thank You for Sharing! 🌟",null,
+        getPostCreationEmailTemplate(user.username)
+      );
+    }
+    
+    
+    // Send post created SMS
+    if (user.phoneNumber) {
+      console.log("Phone number create post:", user.phoneNumber);
+      await sendSMS(user.phoneNumber,  `Thank you ${user.username}, for posting on Magnifier, The admin will review your post before publishing`);
+    }
+    
+
+    return res.status(201).json({
+      data: populatedPost,
+      message: "Post created successfully",
+      success: true,
+    });
+  } catch (error) {
+    console.error("Create post error:", error);
+    return res.status(500).json({
+      message: error.message || "Internal server error",
+      error: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
+};
+
+// create draft post new
+
+export const createDraftPost = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized: User ID missing" });
+    }
+
+    // Extract fields from FormData
+    const { content, timezone } = req.body; // Now properly extracting content
+    const file = req.file;
+    const userId = req.user.id;
+
+    let voiceNoteUrl = "";
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    let mediaUrl = null;
+
+    // Handle file upload
+    if (file) {
+      try {
+        const uploadResult = await uploadToS3(file, "images"); // "images" folder in S3
+        mediaUrl = uploadResult.url;
+      } catch (uploadError) {
+        console.error("Error uploading to Amazon s3", uploadError);
+        return res
+          .status(500)
+          .json({ success: false, message: "Media upload failed" });
       }
     }
 
     // Ensure either content or mediaUrl is provided
     if (!content && !mediaUrl) {
-      return res.status(400).json({ message: 'Content or media is required' });
+      return res.status(400).json({ message: "Content or media is required" });
     }
 
-    let postType = 'Text';
+    let postType = "Text";
     if (mediaUrl) {
       // For single file uploads, use file.mimetype instead of req.files[0]
-      postType = file.mimetype.startsWith('image') ? 'Photo' : 'Video';
+      postType = file.mimetype.startsWith("image") ? "Photo" : "Video";
     }
-    if (voiceNoteUrl) postType = 'VoiceNote';
-   
+    if (voiceNoteUrl) postType = "VoiceNote";
+
     // Create a new post object
     const newPost = new Post({
       userId,
       postType,
-      content: content || '',
-      mediaUrl: mediaUrl || '', 
+      content: content || "",
+      mediaUrl: mediaUrl || "",
       stickyDuration: 0,
-      postStatus: 'draft',
-      status: 'pending',
+      postStatus: "draft",
+      status: "pending",
       sticky: false,
       stickyUntil: null,
-       timezone: timezone || "UTC"
+      timezone: timezone || "UTC",
     });
 
     const savedPost = await newPost.save();
     res.status(201).json({
       success: true,
-      message: 'Draft post created successfully',
+      message: "Draft post created successfully",
       post: {
         _id: savedPost._id,
         content: savedPost.content,
         mediaUrl: savedPost.mediaUrl,
         postType: savedPost.postType,
-        createdAt: savedPost.createdAt
-      }
+        createdAt: savedPost.createdAt,
+      },
     });
-
   } catch (error) {
-    console.error('Error creating draft post:', error);
-    res.status(500).json({ 
+    console.error("Error creating draft post:", error);
+    res.status(500).json({
       success: false,
-      message: 'Error creating post',
-      error: error.message 
+      message: "Error creating post",
+      error: error.message,
     });
   }
 };
@@ -194,27 +294,29 @@ export const createDraftPost = async (req, res) => {
 // Fetch posts
 export const getPosts = async (req, res) => {
   try {
-    const posts = await Post.find().sort({ sticky: -1,stickyUntil: -1, createdAt: -1 })
-    //.populate('userId', 'username profilePic')
-    //.populate('comments.userId', 'username')
-    //.populate('comments.userId', 'username profilePic'); 
+    const posts = await Post.find()
+      .sort({ sticky: -1, stickyUntil: -1, createdAt: -1 })
+      //.populate('userId', 'username profilePic')
+      //.populate('comments.userId', 'username')
+      //.populate('comments.userId', 'username profilePic');
 
-    .populate({
-      path: 'userId',
-      select: 'username profilePic' // Fetch only username & profilePic
-    })
-    .populate({
-      path: 'comments.userId',
-      select: '_id  username profilePic' // Fetch only necessary fields for comments
-    })
+      .populate({
+        path: "userId",
+        select: "username profilePic", // Fetch only username & profilePic
+      })
+      .populate({
+        path: "comments.userId",
+        select: "_id  username profilePic", // Fetch only necessary fields for comments
+      });
     res.status(200).json({ posts });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching posts', error });
+    res.status(500).json({ message: "Error fetching posts", error });
   }
 };
 
 // Like a post new
-{/*export const likePost = async (req, res) => {
+{
+  /*export const likePost = async (req, res) => {
   try {
     const { postId } = req.params;
     const userId = req.user.id
@@ -237,10 +339,12 @@ export const getPosts = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Error liking post', error });
   }
-};*/}
+};*/
+}
 
 // Like a post
-{/*export const likePost = async (req, res) => {
+{
+  /*export const likePost = async (req, res) => {
   try {
       const { postId } = req.params;
       const userId = req.user.id; // Get the logged-in user's ID from the request body
@@ -273,10 +377,12 @@ export const getPosts = async (req, res) => {
       console.error('Error liking post:', error);
       res.status(500).json({ message: 'Error liking post', error });
   }
-}*/}
+}*/
+}
 
 // Dislike a post
-{/*export const dislikePost = async (req, res) => {
+{
+  /*export const dislikePost = async (req, res) => {
   try {
     const { postId } = req.params;
 
@@ -299,10 +405,12 @@ export const getPosts = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Error disliking post', error });
   }
-};*/}
+};*/
+}
 
 // Dislike a post new
-{/*export const dislikePost = async (req, res) => {
+{
+  /*export const dislikePost = async (req, res) => {
   try {
       const { postId } = req.params;
       const userId = req.user.id; // Get the logged-in user's ID from the request body
@@ -335,11 +443,12 @@ export const getPosts = async (req, res) => {
       console.error('Error disliking post:', error);
       res.status(500).json({ message: 'Error disliking post', error });
   }
-};*/}
-
+};*/
+}
 
 // Add a comment
-{/*export const addComment = async (req, res) => {
+{
+  /*export const addComment = async (req, res) => {
   
   
   try {
@@ -365,8 +474,8 @@ export const getPosts = async (req, res) => {
     console.error("Error in addComment controller:", error); 
     res.status(500).json({ message: 'Error adding comment', error });
   }
-};*/}
-
+};*/
+}
 
 export const addComment = async (req, res) => {
   try {
@@ -379,7 +488,7 @@ export const addComment = async (req, res) => {
     }
 
     const post = await Post.findById(postId);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
+    if (!post) return res.status(404).json({ message: "Post not found" });
 
     // Add comment to the post
     post.comments.push({ userId, comment });
@@ -387,54 +496,50 @@ export const addComment = async (req, res) => {
 
     // Fetch the updated post with populated user data
     const updatedPost = await Post.findById(postId)
-      .populate('userId', 'username profilePic') // Populate post author
-      .populate('comments.userId', 'username profilePic'); // Populate comment authors
+      .populate("userId", "username profilePic") // Populate post author
+      .populate("comments.userId", "username profilePic"); // Populate comment authors
 
     res.status(201).json(updatedPost); // Send the fully populated post
   } catch (error) {
     console.error("Error in addComment controller:", error);
-    res.status(500).json({ message: 'Error adding comment', error });
+    res.status(500).json({ message: "Error adding comment", error });
   }
 };
 
-
-
-
-
-
 export const updateReactions = async (req, res) => {
   try {
-      const { postId } = req.params;
-      const { reaction } = req.body; // 'like' or 'dislike'
+    const { postId } = req.params;
+    const { reaction } = req.body; // 'like' or 'dislike'
 
-      const post = await Post.findById(postId);
-      if (!post) return res.status(404).json({ message: "Post not found" });
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ message: "Post not found" });
 
-      if (reaction === 'like') {
-          post.likes += 1;
-      } else if (reaction === 'dislike') {
-          post.dislikes += 1;
-      } else {
-          return res.status(400).json({ message: "Invalid reaction type" });
-      }
+    if (reaction === "like") {
+      post.likes += 1;
+    } else if (reaction === "dislike") {
+      post.dislikes += 1;
+    } else {
+      return res.status(400).json({ message: "Invalid reaction type" });
+    }
 
-      await post.save();
+    await post.save();
 
-      // Update wallet amount
-      const user = await User.findById(post.userId);
-      if (user) {
-          user.walletAmount += 10;
-          await user.save();
-      }
+    // Update wallet amount
+    const user = await User.findById(post.userId);
+    if (user) {
+      user.walletAmount += 10;
+      await user.save();
+    }
 
-      res.status(200).json({ message: "Reaction updated", post });
+    res.status(200).json({ message: "Reaction updated", post });
   } catch (error) {
-      res.status(500).json({ message: "Error updating reactions", error });
+    res.status(500).json({ message: "Error updating reactions", error });
   }
 };
 
 // like post new 1
-{/*export const likePost = async (req, res) => {
+{
+  /*export const likePost = async (req, res) => {
   try {
     const { postId } = req.params;
     const userId = req.user.id; // Get the logged-in user's ID
@@ -525,7 +630,8 @@ export const dislikePost = async (req, res) => {
     console.error('Error disliking post:', error);
     res.status(500).json({ message: 'Error disliking post', error });
   }
-};*/}
+};*/
+}
 
 export const likePost = async (req, res) => {
   try {
@@ -536,13 +642,10 @@ export const likePost = async (req, res) => {
     const post = await Post.findById(postId);
     if (!post) return res.status(404).json({ message: "Post not found" });
 
- // Prevent user from liking their own post
- if (post.userId.toString() === userId) {
-  return res
-    .status(400)
-    .json({ message: "You cannot like your own post" });
-}
-
+    // Prevent user from liking their own post
+    if (post.userId.toString() === userId) {
+      return res.status(400).json({ message: "You cannot like your own post" });
+    }
 
     // Fetch the user
     const user = await User.findById(userId);
@@ -597,16 +700,13 @@ export const likePost = async (req, res) => {
       post,
       walletAmount: user.walletAmount,
       //totalLikes: post.likes,
-  //totalDislikes: post.dislikes,
-
+      //totalDislikes: post.dislikes,
     });
   } catch (error) {
     console.error("Error liking post:", error);
     res.status(500).json({ message: "Error liking post", error });
   }
 };
-
-
 
 export const dislikePost = async (req, res) => {
   try {
@@ -617,15 +717,10 @@ export const dislikePost = async (req, res) => {
     const post = await Post.findById(postId);
     if (!post) return res.status(404).json({ message: "Post not found" });
 
- // Prevent user from liking their own post
- if (post.userId.toString() === userId) {
-  return res
-    .status(400)
-    .json({ message: "You cannot like your own post" });
-}
-
-
-
+    // Prevent user from liking their own post
+    if (post.userId.toString() === userId) {
+      return res.status(400).json({ message: "You cannot like your own post" });
+    }
 
     // Fetch the user
     const user = await User.findById(userId);
@@ -649,7 +744,9 @@ export const dislikePost = async (req, res) => {
         post.dislikes += 1; // Increase dislikes
       } else {
         // Already disliked; no action needed
-        return res.status(400).json({ message: "You already disliked this post" });
+        return res
+          .status(400)
+          .json({ message: "You already disliked this post" });
       }
     } else {
       // First time reacting to the post
@@ -664,14 +761,16 @@ export const dislikePost = async (req, res) => {
     await user.save();
 
     // Send email notification to the post owner
-    {/*const postOwnerEmail = post.userId.email; // Assuming email is stored in the user model
+    {
+      /*const postOwnerEmail = post.userId.email; // Assuming email is stored in the user model
     if (postOwnerEmail) {
       await sendNotificationEmail(
         postOwnerEmail,
         "New Dislike on Your Post",
         `Hi ${post.userId.username}, your post has received a new dislike from ${user.username}.`
       );
-    }*/}
+    }*/
+    }
 
     res.status(200).json({
       message: walletIncremented
@@ -680,8 +779,7 @@ export const dislikePost = async (req, res) => {
       post,
       walletAmount: user.walletAmount,
       totalLikes: post.likes,
-  totalDislikes: post.dislikes,
-
+      totalDislikes: post.dislikes,
     });
   } catch (error) {
     console.error("Error disliking post:", error);
@@ -689,9 +787,7 @@ export const dislikePost = async (req, res) => {
   }
 };
 
-
-// new post owner 
-
+// new post owner
 
 export const likePosts = async (req, res) => {
   try {
@@ -699,25 +795,30 @@ export const likePosts = async (req, res) => {
     const userId = req.user.id;
 
     // Fetch the post and validate it
-    const post = await Post.findById(postId).populate('userId', 'username profilePic email');
+    const post = await Post.findById(postId).populate(
+      "userId",
+      "username profilePic email"
+    );
     if (!post) return res.status(404).json({ message: "Post not found" });
 
     // Prevent user from liking their own post
     if (!post.userId) {
-      return res.status(400).json({ message: "Post does not have a valid userId" });
+      return res
+        .status(400)
+        .json({ message: "Post does not have a valid userId" });
     }
-    
+
     if (post.userId._id.toString() === userId) {
       return res.status(400).json({ message: "You cannot like your own post" });
     }
-    
 
     // Fetch user and post owner
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const postOwner = await User.findById(post.userId);
-    if (!postOwner) return res.status(404).json({ message: "Post owner not found" });
+    if (!postOwner)
+      return res.status(404).json({ message: "Post owner not found" });
 
     // Check if the user has already reacted
     const existingReactionIndex = user.reactions.findIndex(
@@ -768,10 +869,6 @@ export const likePosts = async (req, res) => {
   }
 };
 
-
-
-
-
 export const dislikePosts = async (req, res) => {
   try {
     const { postId } = req.params;
@@ -782,21 +879,25 @@ export const dislikePosts = async (req, res) => {
     if (!post) return res.status(404).json({ message: "Post not found" });
 
     if (!post.userId) {
-      return res.status(400).json({ message: "Post does not have a valid userId" });
+      return res
+        .status(400)
+        .json({ message: "Post does not have a valid userId" });
     }
-    
+
     if (post.userId.toString() === userId) {
-      return res.status(400).json({ message: "You cannot dislike your own post" });
+      return res
+        .status(400)
+        .json({ message: "You cannot dislike your own post" });
     }
-    
-  
+
     // Fetch the user
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
     // Fetch the post owner
     const postOwner = await User.findById(post.userId);
-    if (!postOwner) return res.status(404).json({ message: "Post owner not found" });
+    if (!postOwner)
+      return res.status(404).json({ message: "Post owner not found" });
 
     // Check for an existing reaction
     const existingReactionIndex = user.reactions.findIndex(
@@ -846,41 +947,42 @@ export const dislikePosts = async (req, res) => {
   }
 };
 
-
-
 export const getPostById = async (req, res) => {
   try {
     const { id } = req.params; // Get the post ID from the request parameters
-    console.log("postbyId",id)
+    console.log("postbyId", id);
     // Fetch the post from the database
     //const post = await Post.findOne({ _id: id });
 
     // Validate ObjectId
-    {/*if (!mongoose.Types.ObjectId.isValid(id)) {
+    {
+      /*if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: "Invalid post ID format" });
-    }*/}
+    }*/
+    }
 
     // Fetch the post from DB
-    const post = await Post.findById(id).populate('userId', 'username profilePic') .populate('userId', 'username profilePic')
-    .populate({
-      path: 'comments.userId',
-      select: '_id  username profilePic'
-    });
-    
+    const post = await Post.findById(id)
+      .populate("userId", "username profilePic")
+      .populate("userId", "username profilePic")
+      .populate({
+        path: "comments.userId",
+        select: "_id  username profilePic",
+      });
 
     if (!post) {
-      return res.status(404).json({ error: 'Post not found' });
+      return res.status(404).json({ error: "Post not found" });
     }
 
     // Return the post data
     res.status(200).json({ success: true, data: post });
   } catch (error) {
-    console.error('Error fetching post:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error("Error fetching post:", error);
+    res.status(500).json({ error: "Server error" });
   }
-};   
+};
 
-// delete post 
+// delete post
 
 export const deletePost = async (req, res) => {
   try {
@@ -889,28 +991,29 @@ export const deletePost = async (req, res) => {
     // Check if the post exists
     const post = await Post.findById(postId);
     if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
+      return res.status(404).json({ message: "Post not found" });
     }
 
-// Check if the authenticated user is the post owner
-if (post.userId.toString() !== req.user.id) {
-  return res.status(403).json({ message: 'You do not have permission to delete this post' });
-}
-
+    // Check if the authenticated user is the post owner
+    if (post.userId.toString() !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "You do not have permission to delete this post" });
+    }
 
     // Perform deletion
     await post.deleteOne();
 
-    res.status(200).json({ message: 'Post deleted successfully' });
+    res.status(200).json({ message: "Post deleted successfully" });
   } catch (error) {
-    console.error('Error deleting post:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error deleting post:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-
 // Increment impressions
-{/*export const incrementImpression=  async (req, res) => {
+{
+  /*export const incrementImpression=  async (req, res) => {
   try {
     const post = await Post.findByIdAndUpdate(req.params.postId, { $inc: { impressions: 1 } }, { new: true });
     if (!post) return res.status(404).json({ message: 'Post not found' });
@@ -918,24 +1021,29 @@ if (post.userId.toString() !== req.user.id) {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-}*/}
+}*/
+}
 
 export const incrementImpression = async (req, res) => {
   try {
-    const  userId  = req.user.id; // Assuming userId is sent from the frontend
+    const userId = req.user.id; // Assuming userId is sent from the frontend
 
     const post = await Post.findById(req.params.postId);
 
-    if (!post) return res.status(404).json({ message: 'Post not found' });
+    if (!post) return res.status(404).json({ message: "Post not found" });
 
     // Check if the logged-in user is the owner of the post
     if (post.userId.toString() === userId) {
-      return res.status(200).json({ message: "You viewed your own post. Impression not recorded." });
+      return res
+        .status(200)
+        .json({
+          message: "You viewed your own post. Impression not recorded.",
+        });
     }
 
     // Increment impressions only for other users
     post.impressions += 1;
-    await post.save();  
+    await post.save();
 
     res.status(200).json(post);
   } catch (error) {
@@ -947,7 +1055,7 @@ export const incrementImpression = async (req, res) => {
 
 export const updateStickyTime = async (req, res) => {
   try {
-    const { postId, stickyStartUTC,stickyEndUTC } = req.body;
+    const { postId, stickyStartUTC, stickyEndUTC } = req.body;
 
     if (!postId || !stickyStartUTC || !stickyEndUTC) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -958,7 +1066,7 @@ export const updateStickyTime = async (req, res) => {
       {
         stickyStartUTC,
         stickyEndUTC,
-        status: "published" // Change status from draft to published
+        status: "published", // Change status from draft to published
       },
       { new: true }
     );
@@ -969,7 +1077,7 @@ export const updateStickyTime = async (req, res) => {
 
     return res.status(200).json({
       message: "Sticky time updated successfully",
-      post: updatedPost
+      post: updatedPost,
     });
   } catch (error) {
     console.error("Error updating sticky time:", error);
@@ -977,79 +1085,147 @@ export const updateStickyTime = async (req, res) => {
   }
 };
 
-
 // post search
+
+// In your post controller
+{
+  /*export const searchPost = async (req, res) => {
+  try {
+    const { query, userId } = req.query;
+    console.log('Received search request with:', { query, userId }); // Add this line
+   
+    const searchConditions = {
+      postStatus: 'published'
+    };
+
+    if (query) {
+      searchConditions.$or = [
+        { title: { $regex: query, $options: 'i' } },
+        { description: { $regex: query, $options: 'i' } },
+        { content: { $regex: query, $options: 'i' } },
+       
+      ];
+    }
+
+    if (userId) {
+      searchConditions.userId = userId
+    }
+
+    const posts = await Post.find(searchConditions)
+      .limit(10)
+      .populate('userId', 'username profilePic') .sort({ createdAt: -1 });;
+      console.log('Found posts:', posts.length);
+ 
+      res.json({
+      success: true,
+      data: posts
+    });
+  } catch (error) {
+    console.error('Search post error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}*/
+}
 
 export const searchPost = async (req, res) => {
   try {
-    const { query } = req.query;
-    
-    if (!query || query.trim() === '') {
-      return res.status(400).json({ success: false, error: 'Search query is required' });
+    const { query, userId } = req.query;
+    console.log("Received search request with:", { query, userId });
+
+    const searchConditions = {
+      postStatus: "published",
+    };
+
+    let userMatchIds = [];
+
+    if (query) {
+      // Step 1: Find users matching the query
+      const matchingUsers = await User.find(
+        {
+          $or: [
+            { username: { $regex: query, $options: "i" } },
+            { name: { $regex: query, $options: "i" } },
+          ],
+        },
+        "_id"
+      );
+      userMatchIds = matchingUsers.map((user) => user._id);
+
+      // Step 2: Build $or condition with both post fields and userId
+      searchConditions.$or = [
+        { title: { $regex: query, $options: "i" } },
+        { description: { $regex: query, $options: "i" } },
+        { content: { $regex: query, $options: "i" } },
+        { userId: { $in: userMatchIds } },
+      ];
     }
 
-    const posts = await Post.find({
-      postStatus: 'published',
-      $or: [
-        { title: { $regex: query, $options: 'i' } },
-        { description: { $regex: query, $options: 'i' } },
-        { content: { $regex: query, $options: 'i' } }
-      ]
-    })
-    .sort({ createdAt: -1 })
-    .limit(20)
-    .populate('userId', 'username profilePic');
+    if (userId) {
+      searchConditions.userId = userId;
+    }
+
+    const posts = await Post.find(searchConditions)
+      .limit(10)
+      .populate("userId", "username profilePic")
+      .sort({ createdAt: -1 });
+
+    console.log("Found posts:", posts.length);
 
     res.json({
       success: true,
-      data: posts.map(post => ({
-        ...post._doc,
-        type: 'post'
-      }))
+      data: posts,
     });
   } catch (error) {
-    console.error('Error in post search:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    console.error("Search post error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
-}
+};
 
 // search all
+// In your unifiedSearch controller
 export const unifiedSearch = async (req, res) => {
   try {
     const { query } = req.query;
-    
+
     // Search users
     const users = await User.find({
       $or: [
-        { username: { $regex: query, $options: 'i' } },
-        { bio: { $regex: query, $options: 'i' } }
-      ]
-    }).limit(5);
+        { username: { $regex: query, $options: "i" } },
+        { bio: { $regex: query, $options: "i" } },
+      ],
+    }).limit(10);
 
-    // Search posts
+    // Get user IDs from the found users
+    const userIds = users.map((user) => user._id);
+
+    // Search posts - include posts by matching users as well
     const posts = await Post.find({
-      postStatus: 'published',
       $or: [
-        { title: { $regex: query, $options: 'i' } },
-        { description: { $regex: query, $options: 'i' } },
-        { content: { $regex: query, $options: 'i' } }
-      ]
-    }).limit(5).populate('userId', 'username profilePic');
-
-   
+        {
+          postStatus: "published",
+          $or: [
+            { title: { $regex: query, $options: "i" } },
+            { description: { $regex: query, $options: "i" } },
+            { content: { $regex: query, $options: "i" } },
+          ],
+        },
+        { userId: { $in: userIds } }, // Also include posts by matching users
+      ],
+    })
+      .limit(10)
+      .populate("userId", "username profilePic");
 
     res.json({
       success: true,
-      data: [
-        ...users.map(user => ({ ...user._doc, type: 'user' })),
-        ...posts.map(post => ({ ...post._doc, type: 'post' })),
-        
-      ]
+      data: {
+        users: users.map((user) => user._doc),
+        posts: posts.map((post) => post._doc),
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
-}
+};
 
 export const editComment = async (req, res) => {
   try {
@@ -1062,15 +1238,18 @@ export const editComment = async (req, res) => {
     }
 
     const post = await Post.findById(postId);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
+    if (!post) return res.status(404).json({ message: "Post not found" });
 
     // Find the comment
     const commentToEdit = post.comments.id(commentId);
-    if (!commentToEdit) return res.status(404).json({ message: 'Comment not found' });
+    if (!commentToEdit)
+      return res.status(404).json({ message: "Comment not found" });
 
     // Check if user is the comment author
     if (commentToEdit.userId.toString() !== userId) {
-      return res.status(403).json({ message: 'Unauthorized to edit this comment' });
+      return res
+        .status(403)
+        .json({ message: "Unauthorized to edit this comment" });
     }
 
     // Update the comment
@@ -1079,13 +1258,13 @@ export const editComment = async (req, res) => {
     await post.save();
 
     const updatedPost = await Post.findById(postId)
-      .populate('userId', 'username profilePic')
-      .populate('comments.userId', 'username profilePic');
+      .populate("userId", "username profilePic")
+      .populate("comments.userId", "username profilePic");
 
     res.status(200).json(updatedPost);
   } catch (error) {
     console.error("Error in editComment controller:", error);
-    res.status(500).json({ message: 'Error editing comment', error });
+    res.status(500).json({ message: "Error editing comment", error });
   }
 };
 
@@ -1095,15 +1274,21 @@ export const deleteComment = async (req, res) => {
     const { postId, commentId } = req.params;
 
     const post = await Post.findById(postId);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
+    if (!post) return res.status(404).json({ message: "Post not found" });
 
     // Find the comment
     const commentToDelete = post.comments.id(commentId);
-    if (!commentToDelete) return res.status(404).json({ message: 'Comment not found' });
+    if (!commentToDelete)
+      return res.status(404).json({ message: "Comment not found" });
 
     // Check if user is the comment author or post author
-    if (commentToDelete.userId.toString() !== userId && post.userId.toString() !== userId) {
-      return res.status(403).json({ message: 'Unauthorized to delete this comment' });
+    if (
+      commentToDelete.userId.toString() !== userId &&
+      post.userId.toString() !== userId
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Unauthorized to delete this comment" });
     }
 
     // Remove the comment
@@ -1111,12 +1296,12 @@ export const deleteComment = async (req, res) => {
     await post.save();
 
     const updatedPost = await Post.findById(postId)
-      .populate('userId', 'username profilePic')
-      .populate('comments.userId', 'username profilePic');
+      .populate("userId", "username profilePic")
+      .populate("comments.userId", "username profilePic");
 
     res.status(200).json(updatedPost);
   } catch (error) {
     console.error("Error in deleteComment controller:", error);
-    res.status(500).json({ message: 'Error deleting comment', error });
+    res.status(500).json({ message: "Error deleting comment", error });
   }
 };

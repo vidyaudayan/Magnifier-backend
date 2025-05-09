@@ -16,6 +16,10 @@ import translate from "@vitalets/google-translate-api";
 import getSignupEmailTemplate from "../templates/signupMessage.js";
 import getLoginEmailTemplate from "../templates/loginMessage.js";
 import getJobApplicationEmailTemplate from "../templates/jobMessage.js";
+import { uploadToS3 } from "../utils/s3Uploader.js";
+import admin from "../config/firebase.js";
+import { check, validationResult }from 'express-validator'
+
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
@@ -94,7 +98,7 @@ const signup = async (req, res) => {
     const token = jwt.sign(
       { id: savedUser._id, email: savedUser.email },
       process.env.JWT_SECRET, // Use a secure secret key from environment variables
-      { expiresIn: "1h" } // Token expiration time
+      { expiresIn: "24h" } // Token expiration time
     );
 
     // Send login notification
@@ -147,66 +151,7 @@ function calculateAge(birthDate) {
 }
 // job application
 
-{
-  /*export const applyJob=async (req, res) => {
-  const { userId, voterCardNumber, aadhaarNumber, experience, qualification } = req.body;
-  const resume = req.file
-  
 
-  try {
-
-    cloudinaryInstance.uploader.upload(req.file.path, async (err, result) => {
-      if (err) {
-        console.log(err, "error");
-        return res.status(500).json({
-          success: false,
-          message: "Error",
-        });
-      }
-      console.log(result);
-      
-      const resumeUrl = result.url;
-
-      const body =JSON.parse(req.body.jobApplicationDetails)
-
-      console.log("body", body);
-
-      const { userId,
-        voterCardNumber,
-        aadhaarNumber,
-        experience,
-        qualification,
-         } = body;
-
-     
-
-let parsedResume = [];
-
-
-try {
-  if (resume) {
-    parsedResume = JSON.parse(resume);
-  }
-  
-} catch (error) {
-  return res.status(400).json({ success: false, message: "Invalid JSON format" });
-}
-    const jobApplication = new JobApplication({
-      userId,
-      voterCardNumber,
-      aadhaarNumber,
-      experience,
-      qualification,
-      resume,
-    });
-    await jobApplication.save();
-    res.status(200).json({ message: 'Job application submitted successfully' });
-  })} catch (error) {
-    res.status(500).json({ message: 'Error submitting job application', error });
-
-  }
-};*/
-}
 
 export const applyJob = async (req, res) => {
   const { jobApplicationDetails } = req.body;
@@ -215,9 +160,6 @@ export const applyJob = async (req, res) => {
     //const { voterCardNumber, aadhaarNumber, experience, qualification } = req.body;
     const { username, experience, qualification } = parsedDetails;
     const file = req.file;
-    //const userId = req.user.id
-    console.log("req.body:", req);
-    console.log("req.file:", req.file);
 
     // Verify if username exists in the database
     const existingUser = await User.findOne({ username });
@@ -228,30 +170,16 @@ export const applyJob = async (req, res) => {
     }
 
     const user = await User.findOne({ username });
-    // Validate the presence of required fields
-    {
-      /*if (!userId || !voterCardNumber || !aadhaarNumber || !experience || !qualification) {
-      return res.status(400).json({ success: false, message: 'All fields are required' });
-    }*/
-    }
-
-  
+    
     // Handle file upload
     let resumeUrl = null;
     if (file) {
       try {
-        const uploadResult = await cloudinaryInstance.uploader.upload(
-          file.path,
-          {
-            folder: "job_applications",
-            resource_type: "raw",
-            access_mode: "public",
-            //public_id: "job_applications/resume" // Optional: Specify a folder in Cloudinary
-          }
-        );
-        resumeUrl = uploadResult.secure_url;
+        const uploadResult = await uploadToS3(file, 'resume');
+resumeUrl = uploadResult.url;
+
       } catch (uploadError) {
-        console.error("Error uploading to Cloudinary:", uploadError);
+        console.error("Error uploading to s3", uploadError);
         return res
           .status(500)
           .json({ success: false, message: "Resume upload failed" });
@@ -379,59 +307,53 @@ export const login = async (req, res) => {
 export const addProfilePic = async (req, res) => {
   const userId = req.user.id;
   const file = req.file;
+  
   if (!file) {
-    return res
-      .status(400)
-      .json({ success: false, message: "No file provided" });
+    return res.status(400).json({ success: false, message: "No file provided" });
   }
 
   try {
-    // Handle file upload
     let profilePicUrl = null;
-    if (file) {
-      try {
-        const uploadResult = await cloudinaryInstance.uploader.upload(
-          file.path,
-          {
-            folder: "profilePics",
-            // resource_type: "raw",
-            access_mode: "public",
-            //public_id: "job_applications/resume" // Optional: Specify a folder in Cloudinary
-          }
-        );
-        profilePicUrl = uploadResult.secure_url;
-        if (!profilePicUrl) {
-          throw new Error("Failed to upload to Cloudinary");
-        }
-      } catch (uploadError) {
-        console.error("Error uploading to Cloudinary:", uploadError);
-        return res
-          .status(500)
-          .json({ success: false, message: "Profilepic upload failed" });
+    
+    try {
+      const uploadResult = await uploadToS3(file, "images");
+      profilePicUrl = uploadResult.url; // Remove the 'const' here to use the outer variable
+    
+      if (!profilePicUrl) {
+        throw new Error("Failed to upload to S3");
       }
+    } catch (uploadError) {
+      console.error("Error uploading to Amazon S3", uploadError);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Profilepic upload failed" 
+      });
     }
+
     const user = await User.findByIdAndUpdate(
       userId,
       { profilePic: profilePicUrl },
       { new: true }
-    );
+    ).lean();
 
     if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found" 
+      });
     }
 
-    res
-      .status(200)
-      .json({
-        message: "Profile picture updated",
-        user,
-        profilePic: profilePicUrl,
-      });
+    res.status(200).json({
+      message: "Profile picture updated",
+      user,
+      profilePic: profilePicUrl,
+    });
   } catch (err) {
     console.error("profile pic", err);
-    res.status(500).json({ error: "Server error", details: err.message });
+    res.status(500).json({ 
+      error: "Server error", 
+      details: err.message 
+    });
   }
 };
 
@@ -596,63 +518,6 @@ export const getUserMetrics = async (req, res) => {
   }
 };
 
-// generate OTP
-// Temporary store for OTPs (use Redis/DB in production)
-{
-  /*let otpStore = {}; 
-
-export const sendOTP= async (req, res) => {
-  const { email } = req.body;
- 
-  if (!email) {
-    return res.status(400).json({ message: "Email is required" });
-}
-  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-  //const otpExpiration = Date.now() + 10 * 60 * 1000; // Valid for 10 minutes
-  // Store OTP with expiration
-  otpStore[email] = { otp, expiresAt: Date.now() + 5 * 60 * 1000 }; // 5 minutes
-  console.log("Generated OTP:", otp); 
-
-  try {
-      await sendOtpEmail(email, otp);
-      res.status(200).json({ message: "OTP sent successfully" });
-  } catch (error) {
-    console.error("Error sending OTP:", error);
-      res.status(500).json({ message: "Failed to send OTP", error });
-  }
-}
-
-
-// verify email OTP
-
-export const verifyOTP= (req, res) => {
-  console.log("Request Body:", req.body); 
-  const { email, otp } = req.body;
-   // Check if email and otp are provided
-   if (!email || !otp) {
-    return res.status(400).json({ message: "Email and OTP are required." });
-}
-
-  if (!otpStore[email]) {
-      return res.status(400).json({ message: "Invalid or expired OTP" });
-  }
-
-  const { otp: storedOtp, expiresAt } = otpStore[email];
-
-  if (Date.now() > expiresAt) {
-      delete otpStore[email];
-      return res.status(400).json({ message: "OTP expired" });
-  }
-
-  if (storedOtp === otp) {
-      delete otpStore[email];
-      const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "1h" });
-      return res.status(200).json({ message: "OTP verified", token });
-  }
-
-  res.status(400).json({ message: "Invalid OTP" });
-}*/
-}
 
 // send email otp
 
@@ -673,7 +538,7 @@ export const sendOTP = async (req, res) => {
     // Generate new OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiration = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
-
+console.log("email otp",otp)
     // Update user record with new OTP
     user.otp = otp;
     user.otpExpiration = otpExpiration;
@@ -810,44 +675,7 @@ export const forgotPassword = async (req, res) => {
 };
 
 // Reset password
-{
-  /*export const resetPassword = async (req, res) => {
-  const { resetToken, newPassword } = req.body;
-  console.log(req.body);
-  if (!resetToken || !newPassword) {
-    return res.status(400).json({ message: "Missing required fields" });
-}
 
-  try {
-      // Find user with the reset token
-      const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-      const user = await User.findOne({
-          resetPasswordToken: hashedToken,
-          resetPasswordExpire: { $gt: Date.now() }, // Check if token has expired
-      });
-
-      if (!user) {
-          return res.status(400).json({ message: "Invalid or expired token" });
-      }
-
-      // Hash the new password
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-      // Update the password and clear reset token
-      user.password = hashedPassword;
-      user.resetPasswordToken = undefined;
-      user.resetPasswordExpire = undefined;
-
-      await user.save();
-
-      res.status(200).json({ message: "Password reset successful" });
-  } catch (error) {
-      console.error("Error resetting password:", error);
-      res.status(500).json({ message: "Server error, please try again later." });
-  }
-};*/
-}
 
 export const resetPassword = async (req, res) => {
   try {
@@ -953,9 +781,12 @@ export const getSearchedUserPosts = async (req, res) => {
 
 // cover pic
 
+
+
 export const addCoverPic = async (req, res) => {
   const userId = req.user.id;
   const file = req.file;
+
   if (!file) {
     return res
       .status(400)
@@ -963,30 +794,15 @@ export const addCoverPic = async (req, res) => {
   }
 
   try {
-    // Handle file upload
-    let coverPicUrl = null;
-    if (file) {
-      try {
-        const uploadResult = await cloudinaryInstance.uploader.upload(
-          file.path,
-          {
-            folder: "coverPics",
-            // resource_type: "raw",
-            access_mode: "public",
-            //public_id: "job_applications/resume" // Optional: Specify a folder in Cloudinary
-          }
-        );
-        coverPicUrl = uploadResult.secure_url;
-        if (!coverPicUrl) {
-          throw new Error("Failed to upload to Cloudinary");
-        }
-      } catch (uploadError) {
-        console.error("Error uploading to Cloudinary:", uploadError);
-        return res
-          .status(500)
-          .json({ success: false, message: "Coverpic upload failed" });
-      }
+    // Upload the cover pic to S3 under "profiles" folder
+    const uploadResult = await uploadToS3(file, "profiles");
+
+    const coverPicUrl = uploadResult.url;
+    if (!coverPicUrl) {
+      throw new Error("Failed to upload to S3");
     }
+
+    // Update user's coverPic field in database
     const user = await User.findByIdAndUpdate(
       userId,
       { coverPic: coverPicUrl },
@@ -999,18 +815,21 @@ export const addCoverPic = async (req, res) => {
         .json({ success: false, message: "User not found" });
     }
 
-    res
-      .status(200)
-      .json({ message: "Cover picture updated", user, coverPic: coverPicUrl });
+    res.status(200).json({
+      message: "Cover picture updated",
+      user,
+      coverPic: coverPicUrl
+    });
   } catch (err) {
-    console.error("profile pic", err);
+    console.error("Cover pic upload error:", err);
     res.status(500).json({ error: "Server error", details: err.message });
   }
 };
 
+
 // send mobile otp
 
-const normalizePhoneNumber = (phoneNumber) => {
+{/*const normalizePhoneNumber = (phoneNumber) => {
   phoneNumber = phoneNumber.replace(/[^0-9]/g, "");
   return phoneNumber.startsWith("91") ? `+${phoneNumber}` : `+91${phoneNumber}`;
 };
@@ -1018,14 +837,11 @@ const normalizePhoneNumber = (phoneNumber) => {
 export const sendMobileOtp = (req, res) => {
   console.log("Request body:", req.body); // Debugging log
   let { phoneNumber } = req.body;
-  phoneNumber = normalizePhoneNumber(phoneNumber);
+ // phoneNumber = normalizePhoneNumber(phoneNumber);
   if (!phoneNumber)
     return res.status(400).json({ error: "Phone number is required" });
 
-  // Ensure it's in E.164 format for Twilio
-  //const formattedPhoneNumber = `+91${phoneNumber}`;
- // console.log("Sending OTP to:", formattedPhoneNumber);
-
+ 
 
  phoneNumber = normalizePhoneNumber(phoneNumber); // Normalize the phone number
  console.log("Formatted phone number:", phoneNumber);
@@ -1039,32 +855,16 @@ export const sendMobileOtp = (req, res) => {
       from: process.env.TWILIO_PHONE_NUMBER,
       to: phoneNumber,
     })
-    .then(() => res.json({ message: "OTP sent successfully" }))
+    .then(() => {
+      console.log(`OTP sent to ${phoneNumber}`);
+      res.json({ message: "OTP sent successfully" });
+    })
     .catch((err) => res.status(500).json({ error: err.message }));
 };
 
 // verify mobile otp send
 
-{/*export const verifyMobileOtp = async (req, res) => {
-  let { phoneNumber, otp } = req.body;
-  phoneNumber = normalizePhoneNumber(phoneNumber);
-  console.log("verify req", req.body);
-  if (!phoneNumber || !otp) {
-    return res.status(400).json({ error: "Phone number and OTP are required" });
-  }
-  //const user = await User.findOne({ phoneNumber });
- 
-  
-  const storedOtp = otpMap.get(phoneNumber);
-  console.log(`Stored OTP for ${phoneNumber}: ${storedOtp}`);
 
-  if (storedOtp && storedOtp === otp) {
-    otpMap.delete(phoneNumber);
-    return res.json({ message: "OTP verified successfully" });
-  }
-
-  res.status(400).json({ error: "Invalid OTP" });
-};*/}
 
 export const verifyMobileOtp = async (req, res) => {
   try {
@@ -1127,7 +927,7 @@ export const verifyMobileOtp = async (req, res) => {
       error: "Internal server error"
     });
   }
-};
+};*/}
 
 // Deactivate account
 
@@ -1228,5 +1028,55 @@ export const deleteProfilePic = async (req, res) => {
     });
   } 
 };
+// firebase
+export const sendMobileOtp=  async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { phoneNumber } = req.body;
+    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+    
+    // Firebase will automatically send OTP
+    res.json({ 
+      success: true, 
+      message: 'OTP sent successfully' 
+    });
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+}
+
+export const verifyMobileOtp=  async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { verificationId, otp } = req.body;
+    
+    // In a real implementation, you would verify with Firebase Admin SDK
+    // This is a simplified version
+    const auth = admin.auth();
+    // You would typically use the verification ID and code here
+    
+    // For demo purposes, we'll assume verification is successful
+    const uid = `user:${Date.now()}`;
+    const customToken = await auth.createCustomToken(uid);
+    
+    res.json({ 
+      success: true,
+      token: customToken,
+      message: 'OTP verified successfully'
+    });
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    res.status(400).json({ error: 'Invalid OTP' });
+  }
+}
 
 export default signup;

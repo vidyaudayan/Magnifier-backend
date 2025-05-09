@@ -1,6 +1,7 @@
 import { cloudinaryInstance } from "../config/cloudinary.js";
 import Contact from "../Model/contactModel.js";
 import nodemailer from 'nodemailer';
+import { uploadToS3 } from "../utils/s3Uploader.js";
 
 export const saveContact = async (req, res) => {
     const {contactDetails } = req.body;
@@ -21,13 +22,20 @@ export const saveContact = async (req, res) => {
       let identityProofUrl = null;
       if (file) {
         try {
-          const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
+          {/*const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
             folder: 'identityProofs',
             resource_type: "raw",
             access_mode: "public"
             //public_id: "job_applications/resume" // Optional: Specify a folder in Cloudinary
-          });
-          identityProofUrl = uploadResult.secure_url;
+          });*/}
+
+
+          //identityProofUrl = uploadResult.secure_url;
+        
+          const s3UploadResult = await uploadToS3(file, 'id-card');
+          identityProofUrl = s3UploadResult.url;
+          
+        
         } catch (uploadError) {
           console.error('Error uploading to Cloudinary:', uploadError);
           return res.status(500).json({ success: false, message: 'Identity proof upload failed' });
