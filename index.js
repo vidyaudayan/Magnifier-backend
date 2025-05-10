@@ -29,6 +29,18 @@ const io = new Server(server, {
   },
 })
 app.use(bodyParser.json())
+// server.js
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ 'unsafe-inline'; " +
+    "frame-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "connect-src 'self' https://identitytoolkit.googleapis.com/ https://www.google.com/recaptcha/"
+  );
+  next();
+});
 {/*const corsOptions = {
   origin: 'https://magnifyweb.netlify.app', // Replace with your frontend's URL
   credentials: true, 
@@ -54,7 +66,7 @@ const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173'
   };
   
    
-  
+    
        
 app.use(cors(corsOptions));
 
