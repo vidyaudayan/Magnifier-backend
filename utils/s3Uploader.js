@@ -19,7 +19,7 @@ export const uploadToS3 = async (file, folder = 'images') => {
     const fileExtension = file.originalname.split('.').pop();
     //const uniqueFilename = `images/${Date.now()}-${Math.round(Math.random() * 1E9)}.${fileExtension}`;
     const uniqueFilename = `${folder}/${Date.now()}-${Math.round(Math.random() * 1E9)}.${fileExtension}`;
-
+    console.log('Uploading to S3 Bucket:', process.env.AWS_BUCKET_NAME); 
     const upload = new Upload({
       client: s3Client,
       params: {
