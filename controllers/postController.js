@@ -7,103 +7,8 @@ import { sendSMS } from "../utils/sendSMS.js";
 import getPostCreationEmailTemplate from "../templates/createPostMessage.js";
 import { uploadToS3 } from "../utils/s3Uploader.js";
 import mongoose from "mongoose";
-// create post new
-{
-  /*export const createPost = async (req, res) => {
-  try {
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: 'Unauthorized: User ID missing' });
-    }
-
-    const file = req.file;
-    const userId = req.user.id;
-    const { postType, content,stickyDuration,timezone} = req.body;
-   // const user = await User.findOne({ username });
-   
-   // Fetch user by ID
-   const user = await User.findById(userId);
-   if (!user) {
-     return res.status(404).json({ message: 'User not found' });
-   }
-
-   
-   let mediaUrl = null;
-
-    // Handle file upload
-    if (file) {
-      try {
-        const uploadResult = await cloudinaryInstance.uploader.upload(file.path, {
-          folder: 'posts',
-          resource_type: 'auto',
-        });
-        mediaUrl = uploadResult.secure_url;
-      } catch (uploadError) {
-        console.error('Error uploading to Cloudinary:', uploadError);
-        return res.status(500).json({ success: false, message: 'Media upload failed' });
-      }
-    }
-
-    // Ensure either content or mediaUrl is provided
-    if (!content && !mediaUrl) {
-      return res.status(400).json({ message: 'Content or media is required' });
-    }
-
-    
 
 
-    
-   
- 
-    const newPost = new Post({
-      userId,
-      postType,
-      //content: postType === 'Text' ? content : '', // Store content for text posts
-      //mediaUrl: postType !== 'Text' ? mediaUrl : '', // Store mediaUrl for non-text posts
-      content: content || '',
-  mediaUrl: mediaUrl || '', 
- //tickyDuration: stickyDuration || 0,
- stickyDuration: stickyDuration ? parseInt(stickyDuration) / (60 * 60 * 1000) : 0,
-
-      postStatus: 'draft',
-      status: 'pending',
-       timezone: timezone || "UTC"
-    });
-
-    // Save to database and populate fields
-    const savedPost = await newPost.save();
-    const populatedPost = await Post.findById(savedPost._id).populate('userId', 'username profilePic');
-
-
-
-// Send post created notification
-if (user.email) {
-  await sendNotificationEmail(
-    user.email,"Your Voice Matters – Thank You for Sharing! 🌟",null,
-    getPostCreationEmailTemplate(user.username)
-  );
-}
-
-
-// Send post created SMS
-if (user.phoneNumber) {
-  console.log("Phone number create post:", user.phoneNumber);
-  await sendSMS(user.phoneNumber,  `Thank you ${user.username}, for posting on Magnifier, The admin will review your post before publishing`);
-}
-
-
-    res.status(201).json({
-      data: populatedPost,
-      message: 'Post created successfully',
-      success: true,
-      error: false,
-      isDraft: true
-    });
-  } catch (error) {
-    console.error('Error creating post:', error);
-    res.status(500).json({ message: 'Error creating post', error });
-  }
-};*/
-}
 // amazon s3
 
 export const createPost = async (req, res) => {
@@ -116,9 +21,16 @@ export const createPost = async (req, res) => {
     const { postType, content, stickyDuration, timezone } = req.body;
     const userId = req.user.id;
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select('+state +vidhanSabha');
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+     // Validate user has location data if required
+     if (!user.state || !user.vidhanSabha) {
+      return res.status(400).json({ 
+        message: "User location data is incomplete. Please update your profile."
+      });
     }
 
     let mediaUrl = null;
@@ -126,7 +38,7 @@ export const createPost = async (req, res) => {
     // Handle file upload
     if (file) {
       try {
-        // Additional file validation
+        
         if (!file.buffer || file.buffer.length === 0) {
           throw new Error("File buffer is empty");
         }
@@ -169,6 +81,8 @@ export const createPost = async (req, res) => {
       postStatus: "draft",
       status: "pending",
       timezone: timezone || "UTC",
+      state: user.state,
+      vidhanSabha: user.vidhanSabha
     });
 
     const savedPost = await newPost.save();
@@ -223,10 +137,17 @@ export const createDraftPost = async (req, res) => {
 
     let voiceNoteUrl = "";
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select('+state +vidhanSabha');
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+     // Validate user has location data if required
+     if (!user.state || !user.vidhanSabha) {
+      return res.status(400).json({ 
+        message: "User location data is incomplete. Please update your profile."
+      });
+    }
+
 
     let mediaUrl = null;
 
@@ -267,6 +188,8 @@ export const createDraftPost = async (req, res) => {
       sticky: false,
       stickyUntil: null,
       timezone: timezone || "UTC",
+      state: user.state,
+      vidhanSabha: user.vidhanSabha
     });
 
     const savedPost = await newPost.save();
@@ -292,14 +215,11 @@ export const createDraftPost = async (req, res) => {
 };
 
 // Fetch posts
-export const getPosts = async (req, res) => {
+{/*export const getPosts = async (req, res) => {
   try {
     const posts = await Post.find()
       .sort({ sticky: -1, stickyUntil: -1, createdAt: -1 })
-      //.populate('userId', 'username profilePic')
-      //.populate('comments.userId', 'username')
-      //.populate('comments.userId', 'username profilePic');
-
+      
       .populate({
         path: "userId",
         select: "username profilePic", // Fetch only username & profilePic
@@ -308,6 +228,45 @@ export const getPosts = async (req, res) => {
         path: "comments.userId",
         select: "_id  username profilePic", // Fetch only necessary fields for comments
       });
+    res.status(200).json({ posts });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching posts", error });
+  }
+};*/}
+
+export const getPosts = async (req, res) => {
+  try {
+    const { filter } = req.query;
+    const user = req.user; // Assuming you have user data from authentication
+    
+    // Base query for approved posts
+    let query = { status: 'approved' };
+
+    // Apply filters based on the tab selected
+    if (filter === 'personalized') {
+      // For You tab - show posts from user's state
+      if (user?.state) {
+        query.state = user.state;
+      }
+    } else if (filter === 'local') {
+      // Local Politics tab - show posts from user's constituency
+      if (user?.vidhanSabha) {
+        query.vidhanSabha = user.vidhanSabha;
+      }
+    }
+    // National tab - no additional filters
+
+    const posts = await Post.find(query)
+      .sort({ sticky: -1, stickyUntil: -1, createdAt: -1 })
+      .populate({
+        path: "userId",
+        select: "username profilePic",
+      })
+      .populate({
+        path: "comments.userId",
+        select: "_id username profilePic",
+      });
+
     res.status(200).json({ posts });
   } catch (error) {
     res.status(500).json({ message: "Error fetching posts", error });
@@ -1143,3 +1102,61 @@ export const deleteComment = async (req, res) => {
     res.status(500).json({ message: "Error deleting comment", error });
   }
 };
+
+// report post
+ export const reportPost= async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { reason, reportType } = req.body;
+    const userId = req.user.id;
+
+    // Validate input
+    if (!reportType) {
+      return res.status(400).json({ message: 'Please select a report type' });
+    }
+
+    // Find the post
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+   if (!post.userId) {
+  return res.status(400).json({ message: 'Post does not have a user ID' });
+}
+
+if (post.userId.toString() === userId.toString()) {
+  return res.status(400).json({ message: 'You cannot report your own post' });
+}
+
+
+    // Check if user has already reported this post
+  const existingReport = post.reports.find(report =>
+  report?.reportedBy?.toString() === userId.toString() &&
+  report?.status === 'pending'
+);
+
+    
+    if (existingReport) {
+      return res.status(400).json({ message: 'You have already reported this post' });
+    }
+
+    // Add report to post
+    post.reports.push({
+      reportedBy: userId,
+      reason: reason || reportType,
+      reportType,
+      status: 'pending'
+    });
+
+    await post.save();
+
+    // Create notification for admin (optional)
+    // You'll need to implement this based on your notification system
+
+    res.status(200).json({ message: 'Post reported successfully. Admin will review it.' });
+  } catch (error) {
+    console.error('Error reporting post:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+}

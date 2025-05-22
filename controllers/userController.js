@@ -1029,54 +1029,145 @@ export const deleteProfilePic = async (req, res) => {
   } 
 };
 // firebase
-export const sendMobileOtp=  async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
+// In your backend (send-mobileotp endpoint)
+export const sendMobileOtp = async (req, res) => {
   try {
     const { phoneNumber } = req.body;
-    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
     
-    // Firebase will automatically send OTP
+    if (!phoneNumber) {
+      return res.status(400).json({ error: 'Phone number is required' });
+    }
+
+    // Format phone number
+    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+    
+    // Create user record (optional) and get UID
+    const userRecord = await admin.auth().createUser({
+      phoneNumber: formattedPhone
+    });
+    
     res.json({ 
       success: true, 
-      message: 'OTP sent successfully' 
+      verificationId: userRecord.uid // Using UID as verification ID
     });
   } catch (error) {
     console.error('Error sending OTP:', error);
-    res.status(500).json({ error: 'Failed to send OTP' });
-  }
-}
+    
+    // More specific error handling
+    if (error.code === 'auth/invalid-phone-number') {
+      return res.status(400).json({ error: 'Invalid phone number format' });
+    }
 
-export const verifyMobileOtp=  async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    res.status(500).json({ 
+      error: 'Failed to send OTP',
+      details: error.message 
+    });
   }
+} 
 
+
+
+export const verifyMobileOtp = async (req, res) => {
   try {
-    const { verificationId, otp } = req.body;
+    const { idToken } = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
     
-    // In a real implementation, you would verify with Firebase Admin SDK
-    // This is a simplified version
-    const auth = admin.auth();
-    // You would typically use the verification ID and code here
+    if (!idToken || !token) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'ID token and authorization token are required' 
+      });
+    }
+
+    // Verify Firebase ID token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
     
-    // For demo purposes, we'll assume verification is successful
-    const uid = `user:${Date.now()}`;
-    const customToken = await auth.createCustomToken(uid);
+    // Here you can associate the Firebase UID with your user in database
+    // Example: Update user record with Firebase UID
     
     res.json({ 
       success: true,
-      token: customToken,
-      message: 'OTP verified successfully'
+      message: 'Mobile number verified successfully',
+      firebaseUid: decodedToken.uid
     });
+    
   } catch (error) {
     console.error('Error verifying OTP:', error);
-    res.status(400).json({ error: 'Invalid OTP' });
+    
+    let statusCode = 400;
+    let errorMessage = 'Invalid OTP';
+    
+    if (error.code === 'auth/id-token-expired') {
+      statusCode = 401;
+      errorMessage = 'Token expired';
+    } else if (error.code === 'auth/argument-error') {
+      errorMessage = 'Invalid token format';
+    }
+    
+    res.status(statusCode).json({ 
+      success: false,
+      error: errorMessage,
+      details: error.message 
+    });
   }
 }
+
+export const deleteCoverPic = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    // 1. Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // 2. Check if user has a cover picture
+    if (!user.coverPic) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "No cover picture exists to delete" 
+      });
+    }
+
+    // 3. Extract public ID from Cloudinary URL (or S3 key if using S3)
+    const coverPicUrl = user.coverPic;
+    let publicId;
+    
+    // For Cloudinary URLs
+    if (coverPicUrl.includes('cloudinary')) {
+      publicId = coverPicUrl.split('/').slice(-2).join('/').split('.')[0];
+      // Delete from Cloudinary
+      try {
+        await cloudinaryInstance.uploader.destroy(publicId);
+      } catch (cloudinaryError) {
+        console.error("Cloudinary deletion error:", cloudinaryError);
+      }
+    }
+    // For S3 URLs - you would need to implement S3 deletion logic here
+    // else if (coverPicUrl.includes('s3.amazonaws.com')) {
+    //   // Implement S3 deletion logic
+    // }
+
+    // 4. Update user in database
+    user.coverPic = null;
+    await user.save();
+
+    // 5. Return success response
+    res.status(200).json({ 
+      success: true,
+      message: "Cover picture deleted successfully",
+      user
+    });
+
+  } catch (err) {
+    console.error("Error deleting cover picture:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "Server error", 
+      details: err.message 
+    });
+  } 
+};
 
 export default signup;

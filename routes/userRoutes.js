@@ -1,5 +1,5 @@
 import express from 'express';
-import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic, sendMobileOtp, verifyMobileOtp, deactivateUserAccount, getProfileById, deleteProfilePic} from '../controllers/userController.js'; // Adjust the path
+import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic, sendMobileOtp, verifyMobileOtp, deactivateUserAccount, getProfileById, deleteProfilePic, deleteCoverPic} from '../controllers/userController.js'; // Adjust the path
 import upload from '../middlewares/uploadMiddleware.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
@@ -93,7 +93,7 @@ userRouter.get("/posts/:userId", getSearchedUserPosts);
 userRouter.post("/reset-password", resetPassword);
 userRouter.post("/contact",upload.single("identityProof"),saveContact)
  userRouter.delete("/delete-profilepic",authMiddleware,deleteProfilePic)
-
+userRouter.delete("/delete-coverpic", authMiddleware, deleteCoverPic);
 userRouter.patch("/deactivateaccount",authMiddleware, deactivateUserAccount)
  
 

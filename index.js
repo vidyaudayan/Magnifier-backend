@@ -2,6 +2,7 @@ import express from 'express'
 import http from "http";
 import cors from 'cors'
 import connectDb from './config/db.js'
+import { syncTime } from './utils/timeSync.js';
 import cookieParser from "cookie-parser";
 import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
@@ -9,6 +10,7 @@ import { Server } from "socket.io";
 import userRouter from './routes/userRoutes.js';
 import postRouter from './routes/postRoutes.js';
 import adminRouter from './routes/adminRoutes.js'
+import dashboardRouter from "./routes/dashboardRoutes.js"
 import { cleanupInactiveUsers, resetSlotsDaily, unpinExpiredPosts,processStickyPosts, releaseExpiredSlots } from './jobs/cleanupInactiveUsers.js';
 import { generateSlotsForDay } from './jobs/slotgenerate.js';
 
@@ -16,9 +18,9 @@ import { generateSlotsForDay } from './jobs/slotgenerate.js';
 import dotenv from "dotenv";
 
 dotenv.config();
+console.log(process.env.GOOGLE_APPLICATION_CREDENTIALS);
 
-
-
+syncTime();
 
 const app = express()
 const server = http.createServer(app);
@@ -85,6 +87,7 @@ app.use(cookieParser())
 app.use('/api/v1/user',userRouter)
 app.use('/api/v1/post',postRouter)
 app.use('/api/v1/admin',adminRouter)
+app.use('/api/v1/dashboard',dashboardRouter)
 app.get('/', (req, res) => {
   res.send('Hello World!')
 })

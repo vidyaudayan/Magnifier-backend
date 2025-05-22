@@ -8,6 +8,8 @@ const postSchema = new mongoose.Schema(
     content: { type: String, default: '' }, // URL for images or voice notes
     mediaUrl: { type: String ,  default: ''},
     postType: { type: String, enum: ['Text', 'Photo', 'VoiceNote'], required: true },
+    state: String,        
+    vidhanSabha: String,  
     sticky: { type: Boolean, default: false },
     stickyUntil: { type: Date, default: null },
     likes: { type: Number, default: 0 },
@@ -33,6 +35,34 @@ const postSchema = new mongoose.Schema(
       }
     ],
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+ reports: [{
+    reportedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    reason: {
+      type: String,
+      required: true
+    },
+    reportType: {
+      type: String,
+      enum: ['Inappropriate Content', 'Hate Speech', 'Harassment', 'Spam', 'False Information', 'Other'],
+      required: true
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'reviewed', 'actioned', 'dismissed'],
+      default: 'pending'
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    reviewedAt: Date,
+    actionTaken: String
+  }],
+ 
   },
   { timestamps: true }  
 );   
