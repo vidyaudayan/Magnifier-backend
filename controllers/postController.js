@@ -1108,7 +1108,7 @@ export const deleteComment = async (req, res) => {
   try {
     const { postId } = req.params;
     const { reason, reportType } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.id
 
     // Validate input
     if (!reportType) {
