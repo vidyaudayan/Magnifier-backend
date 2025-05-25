@@ -234,26 +234,26 @@ export const createDraftPost = async (req, res) => {
   }
 };*/}
 
-export const getPosts = async (req, res) => {
+{/*export const getPosts = async (req, res) => {
   try {
-    const { filter } = req.query;
-    const user = req.user; // Assuming you have user data from authentication
-    
+    const { filter,state, vidhanSabha } = req.query;
+    const user = req.user.id; // Assuming you have user data from authentication
+   console.log('user state', state);
+console.log('user vidhanSabha', vidhanSabha);
     // Base query for approved posts
-    let query = { status: 'approved' };
+    //let query = { status: 'approved' };
+     let query = { 
+      status: 'approved',
+      postStatus: 'published'
+    };
 
-    // Apply filters based on the tab selected
-    if (filter === 'personalized') {
-      // For You tab - show posts from user's state
-      if (user?.state) {
-        query.state = user.state;
-      }
-    } else if (filter === 'local') {
-      // Local Politics tab - show posts from user's constituency
-      if (user?.vidhanSabha) {
-        query.vidhanSabha = user.vidhanSabha;
-      }
-    }
+    
+
+    if (filter === 'personalized' && state) {
+  query.state = state;
+} else if (filter === 'local' && vidhanSabha) {
+  query.vidhanSabha = vidhanSabha;
+}
     // National tab - no additional filters
 
     const posts = await Post.find(query)
@@ -271,7 +271,45 @@ export const getPosts = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Error fetching posts", error });
   }
+};*/}
+
+export const getPosts = async (req, res) => {
+  try {
+    const { filter, state, vidhanSabha } = req.query;
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+
+    //console.log('user state', user?.state);
+    //console.log('user vidhanSabha', user?.vidhanSabha);
+
+    let query = {
+      status: 'approved',
+      postStatus: 'published'
+    };
+
+    if (filter === 'personalized' && (state || user?.state)) {
+      query.state = state || user.state;
+    } else if (filter === 'local' && (vidhanSabha || user?.vidhanSabha)) {
+      query.vidhanSabha = vidhanSabha || user.vidhanSabha;
+    }
+
+    const posts = await Post.find(query)
+      .sort({ sticky: -1, stickyUntil: -1, createdAt: -1 })
+      .populate({
+        path: "userId",
+        select: "username profilePic",
+      })
+      .populate({
+        path: "comments.userId",
+        select: "_id username profilePic",
+      });
+
+    res.status(200).json({ posts });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching posts", error });
+  }
 };
+
 
 
 

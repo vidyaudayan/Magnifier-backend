@@ -40,7 +40,7 @@ postRouter.options('*', cors(corsOptions));
 
 postRouter.post("/create",authMiddleware,upload.single("media"), createPost);
 postRouter.post("/createdraftpost",authMiddleware,upload.single("media"), createDraftPost);
-postRouter.get("/", getPosts); 
+postRouter.get("/",authMiddleware, getPosts); 
 
 postRouter.patch('/:postId/like',authMiddleware, likePosts);
 
