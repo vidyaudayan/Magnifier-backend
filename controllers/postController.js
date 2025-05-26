@@ -275,37 +275,35 @@ console.log('user vidhanSabha', vidhanSabha);
 
 export const getPosts = async (req, res) => {
   try {
-    const { filter, state, vidhanSabha } = req.query;
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized access." });
+    }
+
     const userId = req.user.id;
     const user = await User.findById(userId);
 
-    //console.log('user state', user?.state);
-    //console.log('user vidhanSabha', user?.vidhanSabha);
-
-    let query = {
-      status: 'approved',
-      postStatus: 'published'
-    };
-
-    if (filter === 'personalized' && (state || user?.state)) {
-      query.state = state || user.state;
-    } else if (filter === 'local' && (vidhanSabha || user?.vidhanSabha)) {
-      query.vidhanSabha = vidhanSabha || user.vidhanSabha;
+    // Ensure user exists
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
+    // Build query based on user's state
+    const query = {
+      status: 'approved',
+      postStatus: 'published',
+      state: user.state, // This is the main condition
+    };
+
+    // Fetch posts
     const posts = await Post.find(query)
       .sort({ sticky: -1, stickyUntil: -1, createdAt: -1 })
-      .populate({
-        path: "userId",
-        select: "username profilePic",
-      })
-      .populate({
-        path: "comments.userId",
-        select: "_id username profilePic",
-      });
+      .populate("userId", "username profilePic")
+      .populate("comments.userId", "_id username profilePic");
 
     res.status(200).json({ posts });
   } catch (error) {
+    console.error("Error fetching posts:", error);
     res.status(500).json({ message: "Error fetching posts", error });
   }
 };
