@@ -215,63 +215,7 @@ export const createDraftPost = async (req, res) => {
 };
 
 // Fetch posts
-{/*export const getPosts = async (req, res) => {
-  try {
-    const posts = await Post.find()
-      .sort({ sticky: -1, stickyUntil: -1, createdAt: -1 })
-      
-      .populate({
-        path: "userId",
-        select: "username profilePic", // Fetch only username & profilePic
-      })
-      .populate({
-        path: "comments.userId",
-        select: "_id  username profilePic", // Fetch only necessary fields for comments
-      });
-    res.status(200).json({ posts });
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching posts", error });
-  }
-};*/}
 
-{/*export const getPosts = async (req, res) => {
-  try {
-    const { filter,state, vidhanSabha } = req.query;
-    const user = req.user.id; // Assuming you have user data from authentication
-   console.log('user state', state);
-console.log('user vidhanSabha', vidhanSabha);
-    // Base query for approved posts
-    //let query = { status: 'approved' };
-     let query = { 
-      status: 'approved',
-      postStatus: 'published'
-    };
-
-    
-
-    if (filter === 'personalized' && state) {
-  query.state = state;
-} else if (filter === 'local' && vidhanSabha) {
-  query.vidhanSabha = vidhanSabha;
-}
-    // National tab - no additional filters
-
-    const posts = await Post.find(query)
-      .sort({ sticky: -1, stickyUntil: -1, createdAt: -1 })
-      .populate({
-        path: "userId",
-        select: "username profilePic",
-      })
-      .populate({
-        path: "comments.userId",
-        select: "_id username profilePic",
-      });
-
-    res.status(200).json({ posts });
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching posts", error });
-  }
-};*/}
 
 export const getPosts = async (req, res) => {
   try {
@@ -625,7 +569,7 @@ export const dislikePost = async (req, res) => {
 
 // new post owner
 
-export const likePosts = async (req, res) => {
+{/*export const likePosts = async (req, res) => {
   try {
     const { postId } = req.params;
     const userId = req.user.id;
@@ -781,7 +725,209 @@ export const dislikePosts = async (req, res) => {
     console.error("Error disliking post:", error);
     res.status(500).json({ message: "Error disliking post", error });
   }
+};*/}
+
+// wallet new
+
+export const likePosts = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    // Fetch the post and validate it
+    const post = await Post.findById(postId).populate(
+      "userId",
+      "username profilePic email"
+    );
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    // Prevent user from liking their own post
+    if (!post.userId) {
+      return res
+        .status(400)
+        .json({ message: "Post does not have a valid userId" });
+    }
+
+    if (post.userId._id.toString() === userId) {
+      return res.status(400).json({ message: "You cannot like your own post" });
+    }
+
+    // Fetch user and post owner
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const postOwner = await User.findById(post.userId);
+    if (!postOwner)
+      return res.status(404).json({ message: "Post owner not found" });
+
+    // Check if the user has already reacted
+    const existingReactionIndex = user.reactions.findIndex(
+      (reaction) => reaction.postId.toString() === postId
+    );
+
+    let walletIncremented = false;
+     let pointsChange = 0;
+
+
+    if (existingReactionIndex >= 0) {
+      // If user has already reacted
+      const existingReaction = user.reactions[existingReactionIndex];
+
+      if (existingReaction.reactionType === "like") {
+        // Remove like if the user clicks like again
+        post.likes = Math.max(0, post.likes - 1);
+        user.reactions.splice(existingReactionIndex, 1);
+        //postOwner.walletAmount = Math.max(0, postOwner.walletAmount - 10); // Deduct from wallet
+        //walletIncremented = true;
+          pointsChange = -10;
+      } else if (existingReaction.reactionType === "dislike") {
+        // Change from dislike to like
+        existingReaction.reactionType = "like";
+        post.dislikes = Math.max(0, post.dislikes - 1);
+        post.likes += 1;
+        pointsChange = 20;
+      }
+    } else {
+      // First-time like
+      user.reactions.push({ postId, reactionType: "like" });
+      post.likes += 1;
+      //postOwner.walletAmount += 10;
+      //walletIncremented = true;
+      pointsChange = 10;
+    }
+    // Update wallet
+    if (pointsChange !== 0) {
+      postOwner.earnedPoints = Math.max(0, postOwner.earnedPoints + pointsChange);
+      postOwner.walletTransactions.push({
+        type: 'earn',
+        amount: Math.abs(pointsChange),
+        status: 'success',
+        description: pointsChange > 0 
+          ? `Earned ${Math.abs(pointsChange)} points from post like` 
+  : `Deducted ${Math.abs(pointsChange)} points from post like`,
+        reference: postId
+      });
+      walletIncremented = true;
+    }
+
+    // Save the changes
+    await post.save();
+    await user.save();
+    await postOwner.save();
+
+    res.status(200).json({
+      message: walletIncremented
+        ? "Post liked, post owner's wallet updated"
+        : "Post liked or reaction updated",
+      post,
+      //walletAmount: user.walletAmount,
+       walletAmount: postOwner.earnedPoints + postOwner.rechargedPoints,
+       earnedPoints: postOwner.earnedPoints, 
+  rechargedPoints: postOwner.rechargedPoints
+    });
+  } catch (error) {
+    console.error("Error liking post:", error);
+    res.status(500).json({ message: "Error liking post", error });
+  }
 };
+
+export const dislikePosts = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    // Fetch the post and validate it
+    const post = await Post.findById(postId).populate(
+      "userId",
+      "username profilePic email"
+    );
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    // Prevent user from disliking their own post
+    if (!post.userId) {
+      return res
+        .status(400)
+        .json({ message: "Post does not have a valid userId" });
+    }
+
+    if (post.userId._id.toString() === userId) {
+      return res.status(400).json({ message: "You cannot dislike your own post" });
+    }
+
+    // Fetch user and post owner
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const postOwner = await User.findById(post.userId);
+    if (!postOwner)
+      return res.status(404).json({ message: "Post owner not found" });
+
+    // Check if the user has already reacted
+    const existingReactionIndex = user.reactions.findIndex(
+      (reaction) => reaction.postId.toString() === postId
+    );
+
+    let walletIncremented = false;
+    let pointsChange = 0;
+
+    if (existingReactionIndex >= 0) {
+      // If user has already reacted
+      const existingReaction = user.reactions[existingReactionIndex];
+
+      if (existingReaction.reactionType === "dislike") {
+        // Remove dislike if the user clicks dislike again
+        post.dislikes = Math.max(0, post.dislikes - 1);
+        user.reactions.splice(existingReactionIndex, 1);
+        pointsChange = -10; // Deduct 10 points for removing dislike
+      } else if (existingReaction.reactionType === "like") {
+        // Change from like to dislike
+        existingReaction.reactionType = "dislike";
+        post.likes = Math.max(0, post.likes - 1);
+        post.dislikes += 1;
+        pointsChange = -20; // Net change from like to dislike (10 for removing like + 10 for adding dislike)
+      }
+    } else {
+      // First-time dislike
+      user.reactions.push({ postId, reactionType: "dislike" });
+      post.dislikes += 1;
+      pointsChange = 10; // 10 points for disliking
+    }
+
+    // Update wallet and transaction history
+    if (pointsChange !== 0) {
+      postOwner.earnedPoints = Math.max(0, postOwner.earnedPoints + pointsChange);
+      postOwner.walletTransactions.push({
+        type: 'earn',
+        amount: Math.abs(pointsChange),
+        status: 'success',
+        description: pointsChange > 0 
+          ? `Earned ${Math.abs(pointsChange)} points from post dislike` 
+          : `Deducted ${Math.abs(pointsChange)} points from post dislike removal`,
+        reference: postId
+      });
+      walletIncremented = true;
+    }
+
+    // Save the changes
+    await post.save();
+    await user.save();
+    await postOwner.save();
+
+    res.status(200).json({
+      message: walletIncremented
+        ? "Post disliked, post owner's wallet updated"
+        : "Post disliked or reaction updated",
+      post,
+      walletAmount: postOwner.earnedPoints + postOwner.rechargedPoints,
+      earnedPoints: postOwner.earnedPoints,
+      rechargedPoints: postOwner.rechargedPoints
+    });
+  } catch (error) {
+    console.error("Error disliking post:", error);
+    res.status(500).json({ message: "Error disliking post", error });
+  }
+};
+
 
 
 // new share

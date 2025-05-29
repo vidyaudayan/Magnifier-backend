@@ -1,5 +1,6 @@
 import Razorpay from "razorpay";
 import Payment from "../Model/paymentModel.js";
+import User from "../Model/userModel.js";
 import Post from "../Model/postModel.js";
 import Slot from "../Model/slotModel.js";
 import dotenv from "dotenv";
@@ -158,7 +159,7 @@ export const createPaymentIntent = async (req, res) => {
 };
 //  verify Payment
 
-export const verifyPayment = async (req, res) => {
+{/*export const verifyPayment = async (req, res) => {
   try {
     // Get userId from authenticated user
     const userId = req.user?._id || req.user?.id;
@@ -285,8 +286,101 @@ export const verifyPayment = async (req, res) => {
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
-};
+};*/}
 
+
+
+export const verifyPayment = async (req, res) => {
+  try {
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature, amount } = req.body;
+    const userId = req.user.id;
+
+    // 1. First verify the user exists
+    const userExists = await User.findById(userId);
+    if (!userExists) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // 2. Verify the payment signature
+    const generatedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (generatedSignature !== razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment verification failed: Invalid signature'
+      });
+    }
+
+    // 3. Calculate points (1 INR = 1 point in this example)
+    const pointsToAdd = Math.floor(amount);
+
+    // 4. Update user's wallet and transaction history
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $inc: {
+          walletAmount: pointsToAdd,
+          rechargedPoints: pointsToAdd
+        },
+        $push: {
+          walletTransactions: {
+            type: 'recharge',
+            amount: pointsToAdd,
+            status: 'success',
+            description: `Wallet recharge of ${pointsToAdd} points via Razorpay`,
+            reference: razorpay_payment_id
+          }
+        }
+      },
+      { new: true, runValidators: true } // Added runValidators
+    );
+
+    if (!updatedUser) {
+      throw new Error('User update failed');
+    }
+
+    // 5. Send success response
+    res.status(200).json({
+      success: true,
+      message: 'Payment verified and wallet recharged successfully',
+      data: {
+        newBalance: updatedUser.walletAmount,
+        transactionId: razorpay_payment_id,
+        pointsAdded: pointsToAdd
+      }
+    });
+
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    
+    // Log failed transaction if error occurred after payment
+    if (req.body.razorpay_payment_id) {
+      await User.findByIdAndUpdate(req.user._id, {
+        $push: {
+          walletTransactions: {
+            type: 'recharge',
+            amount: Math.floor(req.body.amount),
+            status: 'failed',
+            description: `Failed wallet recharge attempt`,
+            reference: req.body.razorpay_payment_id
+          }
+        }
+      }).catch(console.error); // Added error handling for the fallback update
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error verifying payment',
+      error: error.message
+    });
+  }
+};
 
 // controllers/userController.js
 export const handlePaymentFailure = async (req, res) => {

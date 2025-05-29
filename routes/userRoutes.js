@@ -14,6 +14,7 @@ const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173'
 import Payment from "../Model/paymentModel.js";
 import dotenv from "dotenv";
 import { validateState } from '../middlewares/stateValidator.js';
+import { getWalletBalance, rechargeWallet } from '../controllers/walletController.js';
 
 dotenv.config();
 
@@ -103,7 +104,9 @@ userRouter.post("/create-payment-intent",authMiddleware,createPaymentIntent)
 userRouter.post("/verifypayment",authMiddleware,verifyPayment)
 userRouter.post('/payment-failed', authMiddleware,handlePaymentFailure);
 
+// Wallet
 
-
+userRouter.get('/balance', authMiddleware, getWalletBalance);
+userRouter.post('/recharge', authMiddleware, rechargeWallet);
 
 export default userRouter;         

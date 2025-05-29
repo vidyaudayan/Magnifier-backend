@@ -31,7 +31,34 @@ const userSchema = new mongoose.Schema(
    
     walletAmount: { type: Number, default: 0 },
     isFirstLogin: { type: Boolean, default: true },
-    //reactions: [{ postId: String, reactionType: String }] ,
+     earnedPoints: {
+    type: Number,
+    default: 0
+  },
+  rechargedPoints: {
+    type: Number,
+    default: 0
+  },
+  walletTransactions: [
+    {
+      type: {
+        type: String,
+        enum: ['earn', 'recharge', 'withdraw']
+      },
+      amount: Number,
+      status: {
+        type: String,
+        enum: ['pending', 'success', 'failed'],
+        default: 'pending'
+      },
+      timestamp: {
+        type: Date,
+        default: Date.now
+      },
+      description: String,
+      reference: String
+    }
+  ],
     reactions: [  
       {
           postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' }, // Refers to the post

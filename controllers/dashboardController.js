@@ -10,7 +10,7 @@ const METABASE_SECRET_KEY = process.env.METABASE_SECRET_KEY;
 
 const DASHBOARD_IDS = {
     Bihar: { voter: 14, media: 12 },
-    Delhi: { voter: 6, media: 7 },
+    Delhi: { voter: 14, media: 7 },
     'West Bengal': { voter: 16, media: 13 }
   };
 
