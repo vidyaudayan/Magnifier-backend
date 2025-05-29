@@ -374,6 +374,8 @@ export const getProfile = async (req, res) => {
       profilePic: user.profilePic,
       email: user.email,
       coverPic: user.coverPic,
+      rechargedPoints:user.rechargedPoints,
+      earnedPoints:user.earnedPoints
     });
   } catch (error) {
     console.error(error);
@@ -506,6 +508,8 @@ export const getUserMetrics = async (req, res) => {
     res.status(200).json({
       userName: user.username, // Include user name
       profilePicture: user.profilePic, // Include profile picture
+        rechargedPoints:user.rechargedPoints,
+      earnedPoints:user.earnedPoints,
       postCount,
       totalLikes,
       totalDislikes,
