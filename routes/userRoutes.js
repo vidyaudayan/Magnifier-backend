@@ -7,7 +7,8 @@ import { saveContact } from '../controllers/contactController.js';
 import { getPostById } from '../controllers/postController.js';
 import { createOrder, createPaymentIntent, handlePaymentFailure, verifyPayment } from '../controllers/paymentController.js';
 const userRouter = express.Router();
-const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','https://magnifieradmin.netlify.app'];
+const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','https://magnifieradmin.netlify.app', 'http://localhost:5000','http://localhost:5174'];
+
 
 
 

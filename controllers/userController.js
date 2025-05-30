@@ -234,67 +234,64 @@ resumeUrl = uploadResult.url;
 // Login Controller
 export const login = async (req, res) => {
   try {
-    const { username, password } = req.body;
-    console.log(req.body);
-    // Check if the user exists
+    const { username, password, appName } = req.body;
+
     const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    {
-      /*if (user.isFirstLogin) {
-      user.walletAmount = 100; // Set wallet to 100 for the first login
-      user.isFirstLogin = false; // Mark as not the first login
-  }*/
-    }
-
-    // Compare passwords
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Generate a JWT (optional, for session management)
-    const token = jwt.sign(
-      { id: user._id, username: user.username },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "1h",
-      }
-    );
+    const subscription = user.subscriptions?.[appName];
+    if (
+      (appName === "voterMagnifier" || appName === "mediaMagnifier") &&
+      (!subscription?.isActive || new Date(subscription.endDate) < new Date())
+    ) {
+      return res.status(403).json({
+        message: `Your subscription to ${appName} is inactive or expired.`,
+      });
+    }
 
-    // **Check if it's the first login**
     if (user.isFirstLogin) {
-      // Send welcome email
       if (user.email) {
         await sendNotificationEmail(
-          user.email,"Congratuations - 🎉 Thank you for joining us. Share your thoughts, spark conversations, and make an impact! 🚀 🌟",null,
+          user.email,
+          "🎉 Welcome to Magnifier!",
+          null,
           getLoginEmailTemplate(user.username)
         );
       }
 
-       // Send SMS for first login
-       if (user.phoneNumber) {
-        const smsMessage = `Welcome to Magnifier, ${user.username}! 🎉 Thank you for joining us. Share your thoughts, spark conversations, and make an impact! 🚀`;
-        await sendSMS(user.phoneNumber, smsMessage);
+      if (user.phoneNumber) {
+        await sendSMS(
+          user.phoneNumber,
+          `Welcome to Magnifier, ${user.username}! 🎉 Thank you for joining us.`
+        );
       }
 
-      // Set first login flag to false
       user.isFirstLogin = false;
       await user.save();
     }
 
-    // Send success response
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
     res.status(200).json({
       message: "Login successful",
+      token,
       user: {
         id: user._id,
         username: user.username,
         profilePic: user.profilePic,
         walletAmount: user.walletAmount,
+        subscriptions: user.subscriptions || {},
+        state: user.state, 
       },
-      token, // Send the token if you're using JWT
     });
   } catch (error) {
     console.error("Login error:", error);
