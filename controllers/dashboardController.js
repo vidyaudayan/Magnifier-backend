@@ -9,9 +9,10 @@ const METABASE_SITE_URL = process.env.METABASE_SITE_URL;
 const METABASE_SECRET_KEY = process.env.METABASE_SECRET_KEY;
 
 const DASHBOARD_IDS = {
-    Bihar: { voter: 14, media: 12 },
+    Bihar: { voter: 16, media: 12 },
     Delhi: { voter: 14, media: 7 },
-    'West Bengal': { voter: 16, media: 13 }
+    WestBengal: { voter: 16, media: 13 }
+
   };
 
   export const displayDashboard = async (req, res) => {
