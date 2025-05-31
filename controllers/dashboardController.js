@@ -12,6 +12,7 @@ const DASHBOARD_IDS = {
     Bihar: { voter: 16, media: 12 },
     Delhi: { voter: 14, media: 7 },
     WestBengal: { voter: 16, media: 13 }
+
   };
 
   export const displayDashboard = async (req, res) => {
