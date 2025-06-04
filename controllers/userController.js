@@ -19,6 +19,7 @@ import getJobApplicationEmailTemplate from "../templates/jobMessage.js";
 import { uploadToS3 } from "../utils/s3Uploader.js";
 import admin from "../config/firebase.js";
 import { check, validationResult }from 'express-validator'
+import mongoose from "mongoose";
 
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -231,7 +232,6 @@ resumeUrl = uploadResult.url;
   }
 };
 
-// Login Controller
 export const login = async (req, res) => {
   try {
     const { username, password, appName } = req.body;
@@ -244,16 +244,25 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const subscription = user.subscriptions?.[appName];
-    if (
-      (appName === "voterMagnifier" || appName === "mediaMagnifier") &&
-      (!subscription?.isActive || new Date(subscription.endDate) < new Date())
-    ) {
-      return res.status(403).json({
-        message: `Your subscription to ${appName} is inactive or expired.`,
-      });
+    // Apps requiring subscription check
+    const pointRequiredApps = ['voterMagnifier', 'mediaMagnifier'];
+
+    if (pointRequiredApps.includes(appName)) {
+      const subscription = user[appName]; // Access directly, e.g. user.mediaMagnifier
+      const now = new Date();
+
+      const isSubscriptionValid = subscription?.isActive && new Date(subscription.expiresAt) >= now;
+
+      if (!isSubscriptionValid) {
+        return res.status(403).json({
+          message: `You are not subscribed to ${appName}. Please subscribe to continue.`,
+          reason: "not_subscribed",
+          redirectTo: "/subscriptionpage"
+        });
+      }
     }
 
+    // Send welcome notification/email on first login
     if (user.isFirstLogin) {
       if (user.email) {
         await sendNotificationEmail(
@@ -289,8 +298,11 @@ export const login = async (req, res) => {
         username: user.username,
         profilePic: user.profilePic,
         walletAmount: user.walletAmount,
-        subscriptions: user.subscriptions || {},
-        state: user.state, 
+        earnedPoints: user.earnedPoints,
+        rechargedPoints: user.rechargedPoints,
+        voterMagnifier: user.voterMagnifier,
+        mediaMagnifier: user.mediaMagnifier,
+        state: user.state,
       },
     });
   } catch (error) {
@@ -298,6 +310,121 @@ export const login = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+
+
+
+
+export const subscribeWithPoints = async (req, res) => {
+  try {
+    const { username, password, appName } = req.body;
+    console.log("Subscription attempt:", { username, appName });
+
+    const user = await User.findOne({ username });
+    if (!user) {
+      console.log(`User not found: ${username}`);
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const totalPoints = user.rechargedPoints + user.earnedPoints;
+    if (totalPoints < 100) {
+      return res.status(400).json({
+        message: "Insufficient points in wallet",
+        errorType: "INSUFFICIENT_POINTS"
+      });
+    }
+
+    // Deduct 100 points: first from rechargedPoints, then from earnedPoints if needed
+    let pointsToDeduct = 100;
+
+    if (user.rechargedPoints >= pointsToDeduct) {
+      user.rechargedPoints -= pointsToDeduct;
+      pointsToDeduct = 0;
+    } else {
+      pointsToDeduct -= user.rechargedPoints;
+      user.rechargedPoints = 0;
+      user.earnedPoints -= pointsToDeduct;
+    }
+
+    // Update walletAmount to reflect the new total
+    user.walletAmount = user.rechargedPoints + user.earnedPoints;
+
+    const now = new Date();
+    const endDate = new Date(now);
+    endDate.setMonth(endDate.getMonth() + 1);
+
+    if (appName === "mediaMagnifier") {
+      user.mediaMagnifier.isActive = true;
+      user.mediaMagnifier.startAt = now;
+      user.mediaMagnifier.expiresAt = endDate;
+    } else if (appName === "voterMagnifier") {
+      user.voterMagnifier.isActive = true;
+      user.voterMagnifier.startAt = now;
+      user.voterMagnifier.expiresAt = endDate;
+    } else {
+      return res.status(400).json({ message: "Invalid appName" });
+    }
+
+    if (user.isFirstLogin) {
+      if (user.email) {
+        await sendNotificationEmail(
+          user.email,
+          "🎉 Welcome to Magnifier!",
+          null,
+          getLoginEmailTemplate(user.username)
+        );
+      }
+
+      if (user.phoneNumber) {
+        await sendSMS(
+          user.phoneNumber,
+          `Welcome to Magnifier, ${user.username}! 🎉 Thank you for joining us.`
+        );
+      }
+
+      user.isFirstLogin = false;
+    }
+
+    await user.save();
+
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    return res.status(200).json({
+      message: `Successfully subscribed to ${appName}`,
+      walletAmount: user.walletAmount,
+      subscription:
+        appName === "mediaMagnifier"
+          ? user.mediaMagnifier
+          : user.voterMagnifier,
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        profilePic: user.profilePic,
+        walletAmount: user.walletAmount,
+        earnedPoints: user.earnedPoints,
+        rechargedPoints: user.rechargedPoints,
+        mediaMagnifier: user.mediaMagnifier,
+        voterMagnifier: user.voterMagnifier,
+        state: user.state,
+      },
+    });
+  } catch (err) {
+    console.error("Subscription error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 // profile pic
 
@@ -449,76 +576,83 @@ export const initializeWallet = async (req, res) => {
 // user matrics
 export const getUserMetrics = async (req, res) => {
   try {
+    
+
     const userId = req.user.id;
 
-    // Fetch posts by the user
-    const posts = await Post.find({ userId });
+    // Get user with only necessary fields
+    const user = await User.findById(userId)
+      .select('username profilePic walletAmount earnedPoints rechargedPoints reactions isFirstLogin')
+      .lean();
 
-    // Calculate likes, dislikes, and post count
-    const totalLikesOnPosts = posts.reduce(
-      (sum, post) => sum + (post.likes || 0),
-      0
-    );
-    const totalDislikesOnPosts = posts.reduce(
-      (sum, post) => sum + (post.dislikes || 0),
-      0
-    );
-
-    const postCount = posts.length;
-
-    const totalImpressions = posts.reduce((sum, post) => sum + (post.impressions || 0), 0);
-
-    // Update wallet amount
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    // Handle first login to add an initial wallet amount of 100
-    if (user.walletAmount === 0 && user.isFirstLogin) {
-      user.walletAmount = 100; // Add initial wallet amount
-      user.isFirstLogin = false; // Mark that the initial login setup is complete
-    }
-    // Calculate the total wallet amount based on reactions
-    const calculatedWalletAmount =
-      (totalLikesOnPosts + totalDislikesOnPosts) * 10;
-
-    // Update walletAmount ONLY if it differs from the calculated amount
-    if (
-      user.walletAmount !== 100 &&
-      user.walletAmount !== calculatedWalletAmount
-    ) {
-      user.walletAmount += calculatedWalletAmount;
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
     }
 
-    // Calculate total likes and dislikes made by the user on other posts
-    const totalLikes = user.reactions.filter(
-      (reaction) => reaction.reactionType === "like"
-    ).length;
-    const totalDislikes = user.reactions.filter(
-      (reaction) => reaction.reactionType === "dislike"
-    ).length;
+    // Initialize wallet for first login
+    if (user.isFirstLogin && user.walletAmount === 0) {
+      await User.updateOne({ _id: userId }, { 
+        walletAmount: 100,
+        isFirstLogin: false 
+      });
+      user.walletAmount = 100;
+    }
 
-    //user.walletAmount += (totalLikes + totalDislikes) * 10;
-    await user.save();
+    // Get post metrics using aggregation
+    const [postMetrics] = await Post.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: null,
+          postCount: { $sum: 1 },
+          totalLikesReceived: { $sum: "$likes" },
+          totalDislikesReceived: { $sum: "$dislikes" },
+          totalImpressions: { $sum: "$impressions" },
+          pinnedPosts: { $sum: { $cond: [{ $eq: ["$sticky", true] }, 1, 0] } }
+        }
+      }
+    ]);
 
-    //const walletAmount = (totalLikes + totalDislikes) * 10;
+    // Prepare response
+    const responseData = {
+      user: {
+        username: user.username,
+        profilePic: user.profilePic,
+        walletAmount: user.walletAmount,
+        earnedPoints: user.earnedPoints,
+        rechargedPoints: user.rechargedPoints,
+        totalPoints: user.earnedPoints + user.rechargedPoints
+      },
+      posts: {
+        count: postMetrics?.postCount || 0,
+        likesReceived: postMetrics?.totalLikesReceived || 0,
+        dislikesReceived: postMetrics?.totalDislikesReceived || 0,
+        impressions: postMetrics?.totalImpressions || 0,
+        pinned: postMetrics?.pinnedPosts || 0
+      },
+      reactions: {
+        likesGiven: user.reactions.filter(r => r.reactionType === 'like').length,
+        dislikesGiven: user.reactions.filter(r => r.reactionType === 'dislike').length
+      }
+    };
 
     res.status(200).json({
-      userName: user.username, // Include user name
-      profilePicture: user.profilePic, // Include profile picture
-        rechargedPoints:user.rechargedPoints,
-      earnedPoints:user.earnedPoints,
-      postCount,
-      totalLikes,
-      totalDislikes,
-      totalLikesReceived: totalLikesOnPosts, // Likes received on user's posts
-  totalDislikesReceived: totalDislikesOnPosts,
-      walletAmount: user.walletAmount,totalImpressions
+      success: true,
+      data: responseData
     });
+
   } catch (error) {
-    res.status(500).json({ message: "Error fetching metrics", error });
+    console.error("Metrics Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
-
 
 // send email otp
 
@@ -1169,6 +1303,262 @@ export const deleteCoverPic = async (req, res) => {
       details: err.message 
     });
   } 
+};
+
+export const payFromWallet = async (req, res) => {
+  try {
+    const { postId, amount, duration, startHour, endHour, stickyStartUTC, stickyEndUTC } = req.body;
+    const userId = req.user.id;
+
+    // 1. Validate the request
+    if (!postId || !amount || !duration || !stickyStartUTC || !stickyEndUTC) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Missing required fields' 
+      });
+    }
+
+    // 2. Check if user has sufficient balance
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'User not found' 
+      });
+    }
+
+    if (user.totalPoints < amount) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Insufficient wallet balance' 
+      });
+    }
+
+    // 3. Verify the post exists and belongs to the user
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Post not found' 
+      });
+    }
+
+    if (post.userId.toString() !== userId.toString()) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'Unauthorized to pin this post' 
+      });
+    }
+
+    if (!['pending', 'approved', 'rejected'].includes(post.status)) {
+      post.status = 'pending';
+    }
+
+    // Calculate how to deduct from each balance
+    let remainingAmount = amount;
+    let deductedFromRecharged = 0;
+    let deductedFromEarned = 0;
+
+    // First deduct from recharged points
+    if (user.rechargedPoints > 0) {
+      deductedFromRecharged = Math.min(user.rechargedPoints, remainingAmount);
+      user.rechargedPoints -= deductedFromRecharged;
+      remainingAmount -= deductedFromRecharged;
+    }
+
+    // Then deduct from earned points if needed
+    if (remainingAmount > 0 && user.earnedPoints > 0) {
+      deductedFromEarned = Math.min(user.earnedPoints, remainingAmount);
+      user.earnedPoints -= deductedFromEarned;
+      remainingAmount -= deductedFromEarned;
+    }
+
+    // Update total points
+    user.totalPoints = user.rechargedPoints + user.earnedPoints;
+
+    // 4. Create transaction record
+    const transaction = {
+      type: 'pinned_post',
+      amount: -amount,
+      timestamp: new Date(),
+      referenceModel: 'Post',
+      reference: postId,
+      balanceAfter: user.totalPoints,
+      description: `Post pinning for ${duration} hours`,
+      details: {
+        deductedFromRecharged,
+        deductedFromEarned
+      }
+    };
+
+    // 5. Update user and post in a transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // Update user's wallet and add transaction
+      user.walletTransactions.push(transaction);
+      await user.save({ session });
+
+      // Update post
+      post.sticky = true;
+      post.stickyDuration = duration;
+      post.stickyStartUTC = stickyStartUTC;
+      post.stickyEndUTC = stickyEndUTC;
+      post.stickyUntil = new Date(stickyEndUTC);
+      await post.save({ session });
+      
+      await session.commitTransaction();
+      session.endSession();
+
+      res.json({ 
+        success: true,
+        message: 'Post pinned successfully',
+        newBalance: user.totalPoints,
+        deductedFromRecharged,
+        deductedFromEarned
+      });
+
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Error in payFromWallet:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to process wallet payment' 
+    });
+  }
+};  
+  
+export const verifyCredentials = async (req, res) => {
+  try {
+    const { password } = req.body;
+    const userId = req.user.id; 
+
+    const user = await User.findById(userId).select('+password');
+    
+    const isMatch = await bcrypt.compare(password, user.password);
+    
+    if (!isMatch) {
+      return res.status(401).json({ 
+        success: false,
+        valid: false,
+        error: "Invalid credentials" 
+      });
+    }
+
+    res.status(200).json({ 
+      success: true,
+      valid: true,
+      message: "Credentials verified successfully" 
+    });
+
+  } catch (error) {
+    
+  }
+};
+
+// Redeem 
+
+
+export const redeemPoints = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const { points } = req.body;
+    const userId = req.user.id;
+
+    // Validate input
+    if (!points || isNaN(points) || points <= 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid points amount'
+      });
+    }
+
+    const redeemPoints = parseInt(points);
+
+    // Find user with session for transaction
+    const user = await User.findById(userId).session(session);
+    if (!user) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check sufficient balance using virtual
+    if (redeemPoints > user.totalPoints) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient points balance'
+      });
+    }
+
+    // Calculate deduction
+    let pointsFromEarned = Math.min(user.earnedPoints, redeemPoints);
+    let pointsFromRecharged = redeemPoints - pointsFromEarned;
+
+    // Update points
+    user.earnedPoints -= pointsFromEarned;
+    user.rechargedPoints -= pointsFromRecharged;
+
+    // Create transaction record
+    const transaction = {
+      type: 'withdraw',
+      amount: redeemPoints,
+      status: 'success',
+      description: 'Points redemption',
+      balanceAfter: user.totalPoints - redeemPoints,
+      timestamp: new Date(),
+      metadata: {
+        pointsFromEarned,
+        pointsFromRecharged
+      }
+    };
+
+    // Add transaction to user's walletTransactions
+    user.walletTransactions.push(transaction);
+
+    // Save user with transaction
+    await user.save({ session });
+
+    // Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      success: true,
+      message: 'Points redeemed successfully',
+      data: {
+        earnedPoints: user.earnedPoints,
+        rechargedPoints: user.rechargedPoints,
+        totalPoints: user.totalPoints
+      }
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    
+    console.error('Error redeeming points:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to redeem points',
+      error: error.message
+    });
+  }
 };
 
 export default signup;

@@ -1069,44 +1069,7 @@ export const updateStickyTime = async (req, res) => {
 // post search
 
 // In your post controller
-{
-  /*export const searchPost = async (req, res) => {
-  try {
-    const { query, userId } = req.query;
-    console.log('Received search request with:', { query, userId }); // Add this line
-   
-    const searchConditions = {
-      postStatus: 'published'
-    };
 
-    if (query) {
-      searchConditions.$or = [
-        { title: { $regex: query, $options: 'i' } },
-        { description: { $regex: query, $options: 'i' } },
-        { content: { $regex: query, $options: 'i' } },
-       
-      ];
-    }
-
-    if (userId) {
-      searchConditions.userId = userId
-    }
-
-    const posts = await Post.find(searchConditions)
-      .limit(10)
-      .populate('userId', 'username profilePic') .sort({ createdAt: -1 });;
-      console.log('Found posts:', posts.length);
- 
-      res.json({
-      success: true,
-      data: posts
-    });
-  } catch (error) {
-    console.error('Search post error:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-}*/
-}
 
 export const searchPost = async (req, res) => {
   try {

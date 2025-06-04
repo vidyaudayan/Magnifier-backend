@@ -382,7 +382,7 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
-// controllers/userController.js
+
 export const handlePaymentFailure = async (req, res) => {
   const { postId, paymentId, reason } = req.body;
   const userId = req.user.id;

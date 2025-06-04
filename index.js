@@ -12,7 +12,7 @@ import postRouter from './routes/postRoutes.js';
 import adminRouter from './routes/adminRoutes.js'
 import dashboardRouter from "./routes/dashboardRoutes.js"
 import { cleanupInactiveUsers, resetSlotsDaily, unpinExpiredPosts,processStickyPosts, releaseExpiredSlots } from './jobs/cleanupInactiveUsers.js';
-import { generateSlotsForDay } from './jobs/slotgenerate.js';
+import { generateSlotsForDay, generateSlotsForWeek } from './jobs/slotgenerate.js';
 
  import Payment from './Model/paymentModel.js';
 import dotenv from "dotenv";
@@ -49,7 +49,7 @@ app.use((req, res, next) => {
   optionsSuccessStatus: 200               // Allow credentials (cookies, etc.)
 };*/}
 
-const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','http://localhost:5174','https://magnifieradmin.netlify.app','https://magnifier-platform.com/'];
+const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','http://localhost:5174','https://magnifieradmin.netlify.app','https://magnifier-platform.com/','http://ec2-43-204-130-170.ap-south-1.compute.amazonaws.com:5000'];
 
 
   
@@ -116,6 +116,7 @@ export { io, server };
 cleanupInactiveUsers();
 releaseExpiredSlots()
 generateSlotsForDay();
+await generateSlotsForWeek()
 resetSlotsDaily()
 
 mongoose.connection.once("open", () => {

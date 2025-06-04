@@ -1,7 +1,7 @@
 import express from 'express';
-import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic, sendMobileOtp, verifyMobileOtp, deactivateUserAccount, getProfileById, deleteProfilePic, deleteCoverPic} from '../controllers/userController.js'; // Adjust the path
+import signup, { addProfilePic, applyJob, getProfile, getUserMetrics, initializeWallet, login, logout, sendOTP, verifyOTP,forgotPassword,resetPassword, getUserPosts, userSearch, getSearchedUserPosts,addCoverPic, sendMobileOtp, verifyMobileOtp, deactivateUserAccount, getProfileById, deleteProfilePic, deleteCoverPic, payFromWallet, verifyCredentials, redeemPoints, subscribeWithPoints} from '../controllers/userController.js'; // Adjust the path
 import upload from '../middlewares/uploadMiddleware.js';
-import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { authMiddleware, verifyToken } from '../middlewares/authMiddleware.js';
 import cors from 'cors'
 import { saveContact } from '../controllers/contactController.js';
 import { getPostById } from '../controllers/postController.js';
@@ -106,8 +106,11 @@ userRouter.post("/verifypayment",authMiddleware,verifyPayment)
 userRouter.post('/payment-failed', authMiddleware,handlePaymentFailure);
 
 // Wallet
-
+userRouter.post('/verify-credentials',authMiddleware,verifyCredentials)
 userRouter.get('/balance', authMiddleware, getWalletBalance);
 userRouter.post('/recharge', authMiddleware, rechargeWallet);
+userRouter.post('/pay-from-wallet',authMiddleware,payFromWallet)
+userRouter.post("/redeem",authMiddleware,redeemPoints)
+userRouter.post('/subscribe/with-points',subscribeWithPoints);
 
 export default userRouter;         
