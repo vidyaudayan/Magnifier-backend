@@ -33,82 +33,83 @@ const userSchema = new mongoose.Schema(
 
     walletAmount: { type: Number, default: 0 },
     isFirstLogin: { type: Boolean, default: true },
+     voterMagnifier: {
+      isActive: { type: Boolean, default: false },
+      startAt:{type:Date},
+      expiresAt: { type: Date }
+    },
+    mediaMagnifier: {
+      isActive: { type: Boolean, default: false },
+      startAt:{type:Date},
+      expiresAt: { type: Date }
+    },
     earnedPoints: {
       type: Number,
-      default: 0
+      default: 35
     },
     rechargedPoints: {
       type: Number,
-      default: 0
+      default: 75,
     },
     walletTransactions: [
-      {
-        type: {
+    {
+      type: {
+        type: String,
+        enum: ['earn', 'recharge', 'withdraw', 'pinned_post']
+      },
+      amount: Number,
+      status: {
+        type: String,
+        enum: ['pending', 'success', 'failed'],
+        default: 'pending'
+      },
+      timestamp: {
+        type: Date,
+        default: Date.now
+      },
+       referenceModel: {
           type: String,
-          enum: ['earn', 'recharge', 'withdraw']
+          enum: ['Post', 'Payment']
         },
-        amount: Number,
-        status: {
-          type: String,
-          enum: ['pending', 'success', 'failed'],
-          default: 'pending'
+       balanceAfter: Number,
+      description: String,
+   reference: {
+          type: mongoose.Schema.Types.Mixed,
+          refPath: 'walletTransactions.referenceModel'
         },
-        timestamp: {
-          type: Date,
-          default: Date.now
-        },
-        description: String,
-        reference: String
-      }
-    ],
-    reactions: [
+    }
+  ],
+    reactions: [  
       {
-        postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
-        reactionType: { type: String, enum: ['like', 'dislike'] },
-        reactedAt: { type: Date, default: Date.now }
+          postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' }, // Refers to the post
+          reactionType: { type: String, enum: ['like', 'dislike'] },   // Reaction type
+          reactedAt: { type: Date, default: Date.now }                // When the reaction was made
       }
-    ],
-
-    // OTP Fields for Email Verification
-    otp: { type: String },
-    otpExpiration: { type: Date },
-    isVerified: { type: Boolean, default: false },
+  ],
+  // OTP Fields for Email Verification
+  otp: { type: String }, // Stores the generated OTP
+  otpExpiration: { type: Date }, // OTP Expiry Time
+  isVerified: { type: Boolean, default: false }, // To check if email is verified
 
     resetToken: String,
-    resetTokenExpiration: Date,
-
-    posts: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Post'
-      }
-    ],
-
-    subscriptions: {
-      voterMagnifier: {
-        plan: {
-          type: String,
-          enum: ['basic', 'premium', 'pro'],
-          default: 'basic'
-        },
-        isActive: { type: Boolean, default: false },
-        startedAt: { type: Date },
-        expiresAt: { type: Date }
-      },
-      mediaMagnifier: {
-        plan: {
-          type: String,
-          enum: ['basic', 'premium', 'pro'],
-          default: 'basic'
-        },
-        isActive: { type: Boolean, default: false },
-        startedAt: { type: Date },
-        expiresAt: { type: Date }
-      }
-    }
+    resetTokenExpiration: Date, 
+    posts: [ 
+        {
+        type: mongoose.Schema.Types.ObjectId, ref: 'Post'
+        }
+      ]
+   
   },
-  { timestamps: true }
+  { timestamps : true,toJSON: { virtuals: true },
+    toObject: { virtuals: true } }
 );
+// Virtual for total points
+userSchema.virtual('totalPoints').get(function() {
+  return this.earnedPoints + this.rechargedPoints;
+});
+
+// Index for wallet transactions
+userSchema.index({ 'walletTransactions.timestamp': -1 });
 
 const User = mongoose.model("User", userSchema);
 export default User;

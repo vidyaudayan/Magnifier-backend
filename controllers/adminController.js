@@ -708,30 +708,9 @@ export const logout = async (req, res) => {
 
 // Get avilable slots
 
-{
-  /*export const getAvailableSlots = async (req, res) => {
-  try {
-    const { duration } = req.query;
-    const now = new Date();
 
-    const slots = await Slot.find({
-      duration: parseInt(duration),
-      $or: [
-        { booked: false },
-        { expiresAt: { $lt: now } },
-        { pinnedUntil: { $lt: now } }
-      ]
-    }).sort({ startHour: 1 }); // Sort by start hour
 
-    res.json(slots);
-  } catch (error) {
-    console.error("Error fetching slots:", error);
-    res.status(500).json({ error: "Error fetching slots" });
-  }
-};*/
-}
-
-export const getAvailableSlots = async (req, res) => {
+{/*export const getAvailableSlots = async (req, res) => {
   try {
     const { duration } = req.query;
     const now = new Date();
@@ -751,6 +730,44 @@ export const getAvailableSlots = async (req, res) => {
           $and: [{ expiresAt: { $lt: now } }, { pinnedUntil: { $lt: now } }],
         },
       ],
+    }).sort({ startHour: 1 });
+
+    res.json(slots);
+  } catch (error) {
+    console.error("Error fetching slots:", error);
+    res.status(500).json({ error: "Error fetching slots" });
+  }
+};*/}
+
+export const getAvailableSlots = async (req, res) => {
+  try {
+    const { duration, date } = req.query;
+    const now = new Date();
+    
+    // Default to today if no date provided
+    const queryDate = date ? new Date(date) : new Date();
+    queryDate.setHours(0, 0, 0, 0);
+    
+    // Simplified query
+    {/*const slots = await Slot.find({
+      date: queryDate,
+      duration: parseInt(duration),
+      booked: false,
+      $or: [
+        { expiresAt: { $exists: false } },
+        { expiresAt: { $lt: now } }
+      ]
+    }).sort({ startHour: 1 });*/}
+    const slots = await Slot.find({
+      date: queryDate,
+      duration: parseInt(duration),
+      $or: [
+        { booked: false },
+        { 
+          booked: true,
+          expiresAt: { $lt: now } // Show if booking expired
+        }
+      ]
     }).sort({ startHour: 1 });
 
     res.json(slots);
@@ -996,90 +1013,9 @@ if (![1, 3, 6, 12].includes(Number(duration))) {
 };*/
 }
 
+
+
 {/*export const bookSlot = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const { startHour, endHour, duration, postId } = req.body;
-    const userId = req.user.id;
-    const now = new Date();
-    const stickyUntil = new Date(now.getTime() + duration * 60 * 60 * 1000);
-    const bookingGroupId = new mongoose.Types.ObjectId();
-
-    // 1. Check for existing active bookings
-    const existingBooking = await Slot.findOne({
-      startHour,
-      endHour,
-      duration,
-      booked: true,
-      $or: [{ expiresAt: { $gt: now } }, { pinnedUntil: { $gt: now } }],
-    }).session(session);
-
-    if (existingBooking) {
-      await session.abortTransaction();
-      return res.status(409).json({
-        error: "Slot already booked",
-        conflict: existingBooking,
-      });
-    }
-
-    // 2. Book the slot atomically
-    const bookedSlot = await Slot.findOneAndUpdate(
-      {
-        startHour,
-        endHour,
-        duration,
-        $or: [
-          { booked: false },
-          { expiresAt: { $lt: now } },
-          { pinnedUntil: { $lt: now } },
-        ],
-      },
-      {
-        $set: {
-          booked: true,
-          bookedBy: userId,
-          postId,
-          bookedAt: now,
-          stickyUntil,
-          bookingGroupId,
-          expiresAt: new Date(now.getTime() + 15 * 60 * 1000), // 15 min reservation window
-        },
-      },
-      { new: true, session }
-    );
-
-    if (!bookedSlot) {
-      await session.abortTransaction();
-      return res.status(409).json({ error: "Slot no longer available" });
-    }
-
-    await session.commitTransaction();
-
-    // 3. Notify all clients
-    io.emit("slotBooked", {
-      startHour,
-      endHour,
-      duration,
-      bookedBy: userId,
-      postId,
-    });
-
-    res.status(200).json({
-      success: true,
-      slot: bookedSlot,
-    });
-  } catch (error) {
-    await session.abortTransaction();
-    console.error("Booking error:", error);
-    res.status(500).json({ error: "Booking failed" });
-  } finally {
-    session.endSession();
-  }
-};}*/}
-
-export const bookSlot = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -1160,6 +1096,107 @@ export const bookSlot = async (req, res) => {
 
     // 3. Notify all clients
     io.emit("slotBooked", {
+      startHour,
+      endHour,
+      duration,
+      bookedBy: userId,
+      postId,
+      scheduledStartUTC,
+      scheduledEndUTC
+    });
+
+    res.status(200).json({
+      success: true,
+      slot: bookedSlot,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Booking error:", error);
+    res.status(500).json({ error: "Booking failed" });
+  } finally {
+    session.endSession();
+  }
+};*/}
+// with date
+export const bookSlot = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { startHour, endHour, duration, postId, selectedDate } = req.body;
+    const userId = req.user.id;
+    const now = new Date();
+    const bookingGroupId = new mongoose.Types.ObjectId();
+
+    // Convert selectedDate to Date object at start of day
+    const bookingDate = new Date(selectedDate);
+    bookingDate.setHours(0, 0, 0, 0);
+
+    // 1. Check for existing active bookings for this date/time
+    const existingBooking = await Slot.findOne({
+      date: bookingDate,
+      startHour,
+      endHour,
+      duration,
+      booked: true,
+      $or: [{ expiresAt: { $gt: now } }, { stickyUntil: { $gt: now } }],
+    }).session(session);
+
+    if (existingBooking) {
+      await session.abortTransaction();
+      return res.status(409).json({
+        error: "Slot already booked",
+        conflict: existingBooking,
+      });
+    }
+
+    // Calculate the exact start time in UTC
+    const scheduledStartUTC = new Date(bookingDate);
+    scheduledStartUTC.setHours(startHour, 0, 0, 0);
+    
+    // Calculate end time in UTC
+    const scheduledEndUTC = new Date(scheduledStartUTC);
+    scheduledEndUTC.setHours(scheduledStartUTC.getHours() + duration);
+
+    // 2. Book the slot atomically
+    const bookedSlot = await Slot.findOneAndUpdate(
+      {
+        date: bookingDate,
+        startHour,
+        endHour,
+        duration,
+        $or: [
+          { booked: false },
+          { expiresAt: { $lt: now } },
+          { stickyUntil: { $lt: now } },
+        ],
+      },
+      {
+        $set: {
+          booked: true,
+          bookedBy: userId,
+          postId,
+          bookedAt: now,
+          stickyUntil: scheduledEndUTC,
+          bookingGroupId,
+          expiresAt: new Date(now.getTime() + 15 * 60 * 1000), // 15 min reservation window
+          scheduledStartUTC,
+          scheduledEndUTC,
+        },
+      },
+      { new: true, session }
+    );
+
+    if (!bookedSlot) {
+      await session.abortTransaction();
+      return res.status(409).json({ error: "Slot no longer available" });
+    }
+
+    await session.commitTransaction();
+
+    // 3. Notify all clients
+    io.emit("slotBooked", {
+      date: bookingDate,
       startHour,
       endHour,
       duration,
