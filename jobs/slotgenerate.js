@@ -108,3 +108,116 @@ export const generateSlotsForDay = async () => {
       throw error;
     }
   };
+
+  {/*export const generateSlotsForWeek = async () => {
+    try {
+      await Slot.deleteMany({});
+      
+      const durations = [1, 3, 6, 12];
+      const slots = [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Generate slots for each day of the week
+      for (let day = 0; day < 7; day++) {
+        const slotDate = new Date(today);
+        slotDate.setDate(today.getDate() + day);
+        
+        durations.forEach(duration => {
+          // For 1-hour slots, create all 24 slots
+          if (duration === 1) {
+            for (let hour = 0; hour < 24; hour++) {
+              slots.push({
+                hour,
+                date: slotDate,
+                duration,
+                startHour: hour,
+                endHour: hour + duration,
+                type: `${duration}-hour`,
+                booked: false
+              });
+            }
+          } 
+          // For longer durations, create non-overlapping slots
+          else {
+            for (let hour = 0; hour < 24; hour += duration) {
+              if (hour + duration <= 24) {
+                slots.push({
+                  hour,
+                  date: slotDate,
+                  duration,
+                  startHour: hour,
+                  endHour: hour + duration,
+                  type: `${duration}-hour`,
+                  booked: false
+                });
+              }
+            }
+          }
+        });
+      }
+  
+      await Slot.insertMany(slots);
+      console.log(`Generated ${slots.length} slots for the week`);
+    } catch (error) {
+      console.error('Error generating slots:', error);
+      throw error;
+    }
+};*/}
+
+export const generateSlotsForWeek = async () => {
+  try {
+    await Slot.deleteMany({});
+    
+    const durations = [1, 3, 6, 12];
+    const slots = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let day = 0; day < 7; day++) {
+      const slotDate = new Date(today);
+      slotDate.setDate(today.getDate() + day);
+      
+      durations.forEach(duration => {
+        // For 1-hour slots
+        if (duration === 1) {
+          for (let hour = 0; hour < 24; hour++) {
+            slots.push({
+              hour,
+              date: slotDate,
+              duration,
+              startHour: hour,
+              endHour: hour + duration,
+              type: `${duration}-hour`,
+              booked: false, // Explicitly set as not booked
+              expiresAt: null // Clear any expiration
+            });
+          }
+        } 
+        // For longer durations
+        else {
+          for (let hour = 0; hour < 24; hour += duration) {
+            if (hour + duration <= 24) {
+              slots.push({
+                hour,
+                date: slotDate,
+                duration,
+                startHour: hour,
+                endHour: hour + duration,
+                type: `${duration}-hour`,
+                booked: false, // Explicitly set as not booked
+                expiresAt: null // Clear any expiration
+              });
+            }
+          }
+        }
+      });
+    }
+
+    await Slot.insertMany(slots);
+    console.log(`Generated ${slots.length} fresh slots for the week`);
+  } catch (error) {
+    console.error('Error generating slots:', error);
+    throw error;
+  }
+};

@@ -12,7 +12,7 @@ import postRouter from './routes/postRoutes.js';
 import adminRouter from './routes/adminRoutes.js'
 import dashboardRouter from "./routes/dashboardRoutes.js"
 import { cleanupInactiveUsers, resetSlotsDaily, unpinExpiredPosts,processStickyPosts, releaseExpiredSlots } from './jobs/cleanupInactiveUsers.js';
-import { generateSlotsForDay } from './jobs/slotgenerate.js';
+import { generateSlotsForDay, generateSlotsForWeek } from './jobs/slotgenerate.js';
 
  import Payment from './Model/paymentModel.js';
 import dotenv from "dotenv";
@@ -116,6 +116,7 @@ export { io, server };
 cleanupInactiveUsers();
 releaseExpiredSlots()
 generateSlotsForDay();
+await generateSlotsForWeek()
 resetSlotsDaily()
 
 mongoose.connection.once("open", () => {

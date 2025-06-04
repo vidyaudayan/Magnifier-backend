@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema(
     {
       type: {
         type: String,
-        enum: ['earn', 'recharge', 'withdraw']
+        enum: ['earn', 'recharge', 'withdraw', 'pinned_post']
       },
       amount: Number,
       status: {
@@ -55,8 +55,16 @@ const userSchema = new mongoose.Schema(
         type: Date,
         default: Date.now
       },
+       referenceModel: {
+          type: String,
+          enum: ['Post', 'Payment']
+        },
+       balanceAfter: Number,
       description: String,
-      reference: String
+   reference: {
+          type: mongoose.Schema.Types.Mixed,
+          refPath: 'walletTransactions.referenceModel'
+        },
     }
   ],
     reactions: [  
@@ -80,8 +88,16 @@ const userSchema = new mongoose.Schema(
       ]
    
   },
-  { timestamps : true }
+  { timestamps : true,toJSON: { virtuals: true },
+    toObject: { virtuals: true } }
 );
+// Virtual for total points
+userSchema.virtual('totalPoints').get(function() {
+  return this.earnedPoints + this.rechargedPoints;
+});
+
+// Index for wallet transactions
+userSchema.index({ 'walletTransactions.timestamp': -1 });
 
 const User = mongoose.model("User", userSchema);
 export default User;

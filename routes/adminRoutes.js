@@ -50,7 +50,7 @@ adminRouter.post("/logout",logout)
 adminRouter.get("/available-slots", getAvailableSlots);
 adminRouter.post("/pinpost",pinPost)
 adminRouter.post("/book-slot",authMiddleware,  bookSlot)
-  
+   
 adminRouter.get("/get-allusers",getAllUsers)
 adminRouter.get("/get-allposts",getAllPosts)
 adminRouter.get("/getJobApplications", getJobApplications)
