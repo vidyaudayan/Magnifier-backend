@@ -1553,8 +1553,8 @@ export const redeemPoints = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'User not found'
-      });
-    }
+      });  
+    }  
 
     // Check sufficient balance using virtual
     if (redeemPoints > user.totalPoints) {
