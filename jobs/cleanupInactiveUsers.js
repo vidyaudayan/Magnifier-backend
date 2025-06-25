@@ -61,15 +61,15 @@ export const unpinExpiredPosts = async () => {
 
 cron.schedule("*/30 * * * *",unpinExpiredPosts)
 
-export const resetSlotsDaily = async () => {
+{/*export const resetSlotsDaily = async () => {
   try {
       await Slot.updateMany({}, { booked: false, bookedBy: null, bookedAt: null });
       console.log("✅ All slots reset for the new day!");
   } catch (error) {
       console.error("❌ Error resetting slots:", error);
   }
-};
-cron.schedule("0 0 * * *", resetSlotsDaily);
+};*/}
+//cron.schedule("0 0 * * *", resetSlotsDaily);
 
 
 
@@ -135,6 +135,7 @@ setInterval(clearExpiredReservations, 5 * 60 * 1000); // Run every 5 minutes
 //slot release 
 
 // Run every 5 minutes
+
 export const releaseExpiredSlots = async () => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -144,9 +145,10 @@ export const releaseExpiredSlots = async () => {
     
     // Find all slots that need releasing
     const slotsToRelease = await Slot.find({
+      booked: true,
       $or: [
-        { booked: true, expiresAt: { $lt: now } },
-        { booked: true, pinnedUntil: { $lt: now } }
+        { expiresAt: { $lt: now } },
+        { stickyUntil: { $lt: now } }
       ]
     }).session(session);
 
@@ -155,18 +157,16 @@ export const releaseExpiredSlots = async () => {
       return;
     }
 
-    // Release the slots
+    // Release the slots - FIXED SYNTAX HERE
     await Slot.updateMany(
-      {
-        _id: { $in: slotsToRelease.map(s => s._id) }
-      },
+      { _id: { $in: slotsToRelease.map(s => s._id) } }, // Added missing closing brace and parenthesis
       {
         $set: {
           booked: false,
           bookedBy: null,
           postId: null,
           expiresAt: null,
-          pinnedUntil: null
+          stickyUntil: null
         }
       },
       { session }
@@ -184,7 +184,6 @@ export const releaseExpiredSlots = async () => {
 
     await session.commitTransaction();
     io.emit("slotsReleased", { count: slotsToRelease.length });
-    
   } catch (error) {
     await session.abortTransaction();
     console.error('Slot release error:', error);
@@ -192,6 +191,7 @@ export const releaseExpiredSlots = async () => {
     session.endSession();
   }
 };
-
+    
 // Run every 5 minutes
 cron.schedule('*/5 * * * *', releaseExpiredSlots);
+

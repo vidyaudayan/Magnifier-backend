@@ -1523,12 +1523,12 @@ export const verifyCredentials = async (req, res) => {
 };
 
 // Redeem 
-
+   
 
 export const redeemPoints = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-  
+       
   try {
     const { points } = req.body;
     const userId = req.user.id;

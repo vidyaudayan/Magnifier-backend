@@ -7,7 +7,7 @@ import { saveContact } from '../controllers/contactController.js';
 import { getPostById } from '../controllers/postController.js';
 import { createOrder, createPaymentIntent, handlePaymentFailure, verifyPayment } from '../controllers/paymentController.js';
 const userRouter = express.Router();
-const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','https://magnifieradmin.netlify.app'];
+///const allowedOrigins =['https://magnifyweb.netlify.app', 'http://localhost:5173','https://magnifieradmin.netlify.app'];
 
 
 
@@ -41,7 +41,7 @@ dotenv.config();
     optionsSuccessStatus: 200        // For legacy browser support
   };*/}
 
-  const corsOptions = {
+  /*const corsOptions = {
     origin: (origin, callback) => {
       if (allowedOrigins.includes(origin) || !origin) {
         callback(null, true);
@@ -56,10 +56,10 @@ dotenv.config();
   };
   
 
-  userRouter.use(cors(corsOptions));
+  userRouter.use(cors(corsOptions));*/
 
 userRouter.use(express.json());
-userRouter.options('*', cors(corsOptions));
+//userRouter.options('*', cors(corsOptions));
 // Define a preflight response for all routes
 
 userRouter.use("/user",userRouter)

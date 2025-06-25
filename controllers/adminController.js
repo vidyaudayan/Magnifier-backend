@@ -739,7 +739,7 @@ export const logout = async (req, res) => {
   }
 };*/}
 
-export const getAvailableSlots = async (req, res) => {
+{/*export const getAvailableSlots = async (req, res) => {
   try {
     const { duration, date } = req.query;
     const now = new Date();
@@ -758,7 +758,7 @@ export const getAvailableSlots = async (req, res) => {
         { expiresAt: { $lt: now } }
       ]
     }).sort({ startHour: 1 });*/}
-    const slots = await Slot.find({
+    {/*const slots = await Slot.find({
       date: queryDate,
       duration: parseInt(duration),
       $or: [
@@ -775,7 +775,195 @@ export const getAvailableSlots = async (req, res) => {
     console.error("Error fetching slots:", error);
     res.status(500).json({ error: "Error fetching slots" });
   }
+};*/}
+
+// new 13
+
+async function isSlotAvailable(date, startHour, duration) {
+  const endHour = startHour + duration;
+  const now = new Date();
+
+  const overlappingSlot = await Slot.findOne({
+    date: new Date(date),
+    booked: true,
+    $or: [
+      {
+        startHour: { $lt: endHour },
+        endHour: { $gt: startHour }
+      }
+    ],
+    $or: [
+      { expiresAt: { $exists: false } },
+      { expiresAt: { $gt: now } },
+      { stickyUntil: { $gt: now } }
+    ]
+  });
+
+  return !overlappingSlot;
+}
+
+
+
+// Format time function
+
+   
+
+// In your slots controller
+
+
+
+{/*export const getAvailableSlots = async (req, res) => {
+  try {
+    const { date, duration } = req.query;
+    const queryDate = new Date(date);
+    queryDate.setUTCHours(0, 0, 0, 0);
+
+    // Get current time in UTC
+    const now = new Date();
+    const currentUTCHour = now.getUTCHours();
+    const isToday = now.toISOString().split('T')[0] === date;
+
+    // Get all slots for the day with the exact duration
+    const allSlots = await Slot.find({ 
+      date: queryDate,
+      duration: parseInt(duration)
+    }).lean();
+
+    // Filter available slots
+    const availableSlots = allSlots.filter(slot => {
+      // Slot is not booked OR is booked by current user (for modification)
+      const isAvailable = !slot.booked || 
+                         (req.user && slot.bookedBy && slot.bookedBy.toString() === req.user.id.toString());
+      
+      // Filter out past slots if it's today
+      if (isToday && slot.startHour < currentUTCHour) {
+        return false;
+      }
+      
+      return isAvailable;
+    });
+
+    res.json(availableSlots.map(slot => ({
+      ...slot,
+      displayTime: formatSlotTime(slot.startHour, slot.endHour),
+      isAvailable: !slot.booked
+    })));
+  } catch (error) {
+    console.error('Error fetching slots:', error);
+    res.status(500).json({ error: 'Failed to fetch slots' });
+  }
+};*/}
+// new
+
+export const getAvailableSlots = async (req, res) => {
+  try {
+    const { date, duration } = req.query;
+    const queryDate = new Date(date);
+    queryDate.setUTCHours(0, 0, 0, 0);
+
+    // Get current time in UTC
+    const now = new Date();
+    const currentUTCHour = now.getUTCHours();
+    const isToday = now.toISOString().split('T')[0] === date;
+
+    // Get all slots for the day with the exact duration
+    const allSlots = await Slot.find({ 
+      date: queryDate,
+      duration: parseInt(duration)
+    }).lean();
+
+    // Get all booked slots to check for overlaps
+    const bookedSlots = await Slot.find({
+      date: queryDate,
+      booked: true
+    }).lean();
+
+    // Filter available slots
+    const availableSlots = allSlots.filter(slot => {
+      // Slot is not booked OR is booked by current user (for modification)
+      const isAvailable = !slot.booked || 
+                       (req.user && slot.bookedBy && slot.bookedBy.toString() === req.user.id.toString());
+      
+      // Filter out past slots if it's today
+      if (isToday && slot.startHour < currentUTCHour) {
+        return false;
+      }
+
+      // Check if this slot overlaps with any booked slots
+      const isOverlapping = bookedSlots.some(bookedSlot => {
+        return (
+          bookedSlot.startHour <= slot.startHour && 
+          bookedSlot.endHour >= slot.endHour
+        );
+      });
+
+      return isAvailable && !isOverlapping;
+    });
+
+    res.json(availableSlots.map(slot => ({
+      ...slot,
+      displayTime: formatSlotTime(slot.startHour, slot.endHour),
+      isAvailable: !slot.booked
+    })));
+  } catch (error) {
+    console.error('Error fetching slots:', error);
+    res.status(500).json({ error: 'Failed to fetch slots' });
+  }
 };
+
+function formatSlotTime(startHour, endHour) {
+  const startPeriod = startHour >= 12 ? 'PM' : 'AM';
+  const endPeriod = endHour >= 12 ? 'PM' : 'AM';
+  const displayStart = startHour % 12 || 12;
+  const displayEnd = endHour % 12 || 12;
+  
+  return `${displayStart}:00 ${startPeriod} - ${displayEnd}:00 ${endPeriod}`;
+}
+// check avialbility
+{/*export const checkAvailability= async (req, res) => {
+  try {
+    const { date, startHour, duration } = req.query;
+    const available = await isSlotAvailable(new Date(date), startHour, duration);
+    res.json({ available });
+  } catch (error) {
+    res.status(500).json({ error: "Availability check failed" });
+  }
+}*/}
+
+// new 
+
+export const checkAvailability = async (req, res) => {
+  try {
+    const { date, startHour, duration } = req.query;
+    const queryDate = new Date(date);
+    queryDate.setUTCHours(0, 0, 0, 0);
+    const endHour = parseInt(startHour) + parseInt(duration);
+
+    // Check if the exact slot is available
+    const exactSlot = await Slot.findOne({
+      date: queryDate,
+      startHour: parseInt(startHour),
+      duration: parseInt(duration),
+      booked: false
+    });
+
+    if (!exactSlot) {
+      return res.json({ available: false });
+    }
+
+    // Check if any overlapping longer slots are booked
+    const overlappingBooked = await Slot.findOne({
+      date: queryDate,
+      startHour: { $lte: parseInt(startHour) },
+      endHour: { $gte: endHour },
+      booked: true
+    });
+
+    res.json({ available: !overlappingBooked });
+  } catch (error) {
+    res.status(500).json({ error: "Availability check failed" });
+  }
+}
 
 // pin post new
 
@@ -815,167 +1003,331 @@ export const pinPost = async (req, res) => {
   }
 };
 
-{
-  /*
-export const bookSlot = async (req, res) => {
+
+ 
+   
+
+{/*export const bookSlot = async (req, res) => {
+  const session = await mongoose.startSession();
+  
   try {
-    const { startHour, endHour,duration,postId } = req.body;
-    const userId = req.user.id; // Changed from req.user.id to req.user._id
-// Validate duration
-if (![1, 3, 6, 12].includes(Number(duration))) {
-  return res.status(400).json({
-    success: false,
-    error: "Invalid duration selected"
-  });
-}
+    await session.withTransaction(async () => {
+      const { startHour, duration, postId, selectedDate } = req.body;
+      const userId = req.user.id;
+      const endHour = startHour + duration;
+      
+      const bookingDate = new Date(selectedDate);
+      bookingDate.setUTCHours(0, 0, 0, 0);
 
-// Validate postId exists
-    if (!mongoose.Types.ObjectId.isValid(postId)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid post ID"
+      // 1. Check if user already has an active pinned post
+      const existingPinnedPost = await Slot.findOne({
+        bookedBy: userId,
+        booked: true,
+        stickyUntil: { $gt: new Date() }
+      }).session(session);
+
+      if (existingPinnedPost) {
+        throw {
+          status: 400,
+          message: "You already have an active pinned post",
+          details: `You can only have one pinned post at a time (currently pinned until ${existingPinnedPost.stickyUntil})`
+        };
+      }
+
+      // 2. Check for any overlapping booked slots
+      const overlappingBooked = await Slot.findOne({
+        date: bookingDate,
+        booked: true,
+        $or: [
+          { startHour: { $lt: endHour }, endHour: { $gt: startHour } }
+        ]
+      }).session(session);
+
+      if (overlappingBooked) {
+        throw { 
+          status: 409,
+          message: "Slot overlaps with existing booking",
+          details: `Cannot book from ${startHour}:00 to ${endHour}:00 because it overlaps with an existing booking`
+        };
+      }
+
+      // 3. Find and book the exact slot
+      const bookedSlot = await Slot.findOneAndUpdate(
+        {
+          date: bookingDate,
+          startHour: parseInt(startHour),
+          duration: parseInt(duration),
+          booked: false
+        },
+        {
+          $set: {
+            booked: true,
+            bookedBy: userId,
+            postId,
+            bookedAt: new Date(),
+            stickyUntil: new Date(
+              Date.UTC(
+                bookingDate.getUTCFullYear(),
+                bookingDate.getUTCMonth(),
+                bookingDate.getUTCDate(),
+                endHour, 0, 0, 0
+              )
+            )
+          }
+        },
+        { new: true, session }
+      );
+
+      if (!bookedSlot) {
+        throw { 
+          status: 409,
+          message: "Slot not available",
+          details: `No available ${duration}-hour slot found for ${bookingDate.toISOString().split('T')[0]} at ${startHour}:00`
+        };
+      }
+
+      // 4. Update the post
+      const stickyStartUTC = new Date(
+        Date.UTC(
+          bookingDate.getUTCFullYear(),
+          bookingDate.getUTCMonth(),
+          bookingDate.getUTCDate(),
+          startHour, 0, 0, 0
+        )
+      );
+      
+      const stickyEndUTC = new Date(
+        Date.UTC(
+          bookingDate.getUTCFullYear(),
+          bookingDate.getUTCMonth(),
+          bookingDate.getUTCDate(),
+          endHour, 0, 0, 0
+        )
+      );
+
+      const updatedPost = await Post.findByIdAndUpdate(
+        postId,
+        {
+          $set: {
+            sticky: true,
+            stickyStartUTC,
+            stickyEndUTC,
+            stickyDuration: duration,
+            stickyUntil: stickyEndUTC
+          }
+        },
+        { new: true, session }
+      );
+
+      // Return response before emitting socket event
+      res.json({ 
+        success: true, 
+        slot: bookedSlot,
+        post: updatedPost 
       });
-    }
 
-    // Validation checks
-    if (isNaN(startHour) || isNaN(endHour)) {
-      return res.status(400).json({
-        success: false,
-        error: "Start and end hours must be numbers"
-      });
-    }
-
-    if (startHour < 0 || startHour > 23 || endHour < 1 || endHour > 24) {
-      return res.status(400).json({
-        success: false,
-        error: "Hours must be between 0-23 for start and 1-24 for end"
-      });
-    }
-
-    if (startHour >= endHour) {
-      return res.status(400).json({
-        success: false,
-        error: `End hour (${endHour}) must be after start hour (${startHour})`
-      });
-    }
-
-    // Check availability
-    const conflictingSlots = await Slot.find({
-      hour: { $gte: startHour, $lt: endHour },
-      booked: true,
-      expiresAt: { $gt: new Date() } // Only check non-expired bookings
+      // Emit socket event after successful response
+      if (req.app.get('io')) {
+        req.app.get('io').emit("slotBooked", {
+          date: bookingDate,
+          startHour,
+          duration
+        });
+      }
     });
+  } catch (error) {
+    console.error("Booking failed:", error);
+    const status = error.status || 500;
+    const message = error.message || "Booking failed";
+    const details = error.details || (process.env.NODE_ENV === 'development' ? error.message : undefined);
+    
+    res.status(status).json({ 
+      error: message,
+      details
+    });
+  } finally {
+    await session.endSession();
+  }
+}; */}
+export const bookSlots = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const { startHour, duration, postId, selectedDate } = req.body;
+    const userId = req.user.id;
+    const endHour = startHour + duration;
+    
+    const bookingDate = new Date(selectedDate);
+    bookingDate.setUTCHours(0, 0, 0, 0);
 
-    if (conflictingSlots.length > 0) {
-      return res.status(409).json({
-        success: false,
-        error: `${conflictingSlots.length} slot(s) already booked`,
-        conflicts: conflictingSlots.map(s => s.hour)
-      });
+    // 1. Check if slot is still available (double-check)
+    const existingSlot = await Slot.findOne({
+      date: bookingDate,
+      startHour: parseInt(startHour),
+      duration: parseInt(duration)
+    }).session(session);
+
+    if (!existingSlot) {
+      throw {
+        status: 404,
+        message: "Slot not found",
+        details: `No slot found for ${bookingDate.toISOString().split('T')[0]} at ${startHour}:00`
+      };
     }
 
-    // Book slots
-    const slotsToBook = [];
-    for (let hour = startHour; hour < endHour; hour++) {
-      slotsToBook.push({
-        updateOne: {
-          filter: { hour },
-          update: {
-            $set: {
-              booked: true,
-              bookedBy: userId,
-              bookedAt: new Date(),
-              expiresAt: new Date(Date.now() + 15*60*1000) // 15 min expiry
-            }
-          },
-          upsert: true // Create slot if doesn't exist
+    if (existingSlot.booked) {
+      throw {
+        status: 409,
+        message: "Slot already booked",
+        details: `Slot from ${startHour}:00 to ${endHour}:00 is already booked by another user`
+      };
+    }
+
+    // 2. Book the slot
+    const bookedSlot = await Slot.findByIdAndUpdate(
+      existingSlot._id,
+      {
+        $set: {
+          booked: true,
+          bookedBy: userId,
+          postId,
+          bookedAt: new Date(),
+          stickyUntil: new Date(
+            Date.UTC(
+              bookingDate.getUTCFullYear(),
+              bookingDate.getUTCMonth(),
+              bookingDate.getUTCDate(),
+              endHour, 0, 0, 0
+            )
+          )
         }
-      });
-    }
+      },
+      { new: true, session }
+    );
 
-    await Slot.bulkWrite(slotsToBook);
-
-    // Create reservation
-    const reservation = await SlotReservation.create({
-      userId,
-      startHour,
-      endHour,duration,
-      status: "confirmed"
-    });
+    // 3. Update the post
+    const stickyStartUTC = new Date(
+      Date.UTC(
+        bookingDate.getUTCFullYear(),
+        bookingDate.getUTCMonth(),
+        bookingDate.getUTCDate(),
+        startHour, 0, 0, 0
+      )
+    );
+    
+    const stickyEndUTC = new Date(
+      Date.UTC(
+        bookingDate.getUTCFullYear(),
+        bookingDate.getUTCMonth(),
+        bookingDate.getUTCDate(),
+        endHour, 0, 0, 0
+      )
+    );
 
     const updatedPost = await Post.findByIdAndUpdate(
       postId,
-      { 
-        stickyDuration: duration,
-        stickyUntil: new Date(Date.now() + duration * 60 * 60 * 1000)
+      {
+        $set: {
+          sticky: true,
+          stickyStartUTC,
+          stickyEndUTC,
+          stickyDuration: duration,
+          stickyUntil: stickyEndUTC
+        }
       },
-      { new: true }
-    );   
+      { new: true, session }
+    );
 
-    if (!updatedPost) {
-      return res.status(404).json({
-        success: false,
-        error: "Post not found"
-      });
-    }
+    await session.commitTransaction();
 
-    // Notify all clients
-    io.emit("slotBooked", { startHour, endHour });
-
-    res.status(200).json({
-      success: true,
-      message: "Slots booked successfully",
-      reservation,post: updatedPost
-    });
-
-  } catch (error) {
-    console.error("Slot booking failed:", error);
-    res.status(500).json({
-      success: false,
-      error: "Internal server error",
-      details: error.message
-    });
-  }
-};*/
-}
-
-// Updated bookSlot function
-{
-  /*export const bookSlot = async (req, res) => {
-  try {
-    const { startHour, endHour, duration, postId } = req.body;
-    const userId = req.user.id;
-    const stickyUntil= new Date(Date.now() + duration * 60 * 60 * 1000);
-    const bookingGroupId = new mongoose.Types.ObjectId()
-    // Validate inputs
-    if (![1, 3, 6, 12].includes(Number(duration))) {
-      return res.status(400).json({ error: "Invalid duration" });
-    }
-
-    // Check if slot is already booked
-    const existingBooking = await Slot.findOne({
-      startHour,
-      endHour,
-      booked: true,
-      expiresAt: { $gt: new Date() }
-    });
-
-    if (existingBooking) {
-      return res.status(409).json({ 
-        error: "Slot already booked",
-        conflict: existingBooking 
-      });
-    }
-
-    // Book the slot
-    const bookedSlot = await Slot.findOneAndUpdate(
-      { 
+    // Emit socket event after successful booking
+    if (req.app.get('io')) {
+      req.app.get('io').emit("slotBooked", {
+        date: bookingDate,
         startHour,
-        endHour,
-        duration,
+        duration
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      slot: bookedSlot,
+      post: updatedPost 
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Booking failed:", error);
+    const status = error.status || 500;
+    const message = error.message || "Booking failed";
+    const details = error.details || (process.env.NODE_ENV === 'development' ? error.message : undefined);
+    
+    res.status(status).json({ 
+      error: message,
+      details
+    });
+  } finally {
+    await session.endSession();
+  }
+};
+
+export const bookSlot = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const { startHour, duration, postId, selectedDate } = req.body;
+    const userId = req.user.id;
+
+     if (!mongoose.Types.ObjectId.isValid(postId)) {
+      throw {
+        status: 400,
+        message: "Invalid post ID format"
+      };
+    }
+
+     if (!post) {
+      // Check if post exists at all
+      const postExists = await Post.exists({ _id: postId }).session(session);
+      throw {
+        status: 404,
+        message: postExists 
+          ? "You don't own this post" 
+          : "Post not found",
+        details: {
+          postExists,
+          userOwnsPost: false
+        }
+      };
+    }
+    const endHour = startHour + duration;
+    
+    const bookingDate = new Date(selectedDate);
+    bookingDate.setUTCHours(0, 0, 0, 0);
+
+    // 1. Verify the post exists and belongs to user
+    const post = await Post.findOne({
+      _id: postId,
+      author: userId
+    }).session(session);
+
+    if (!post) {
+      throw {
+        status: 404,
+        message: "Post not found or not owned by user"
+      };
+    }
+
+    // 2. Check if slot is available (with strong consistency)
+    const existingSlot = await Slot.findOneAndUpdate(
+      {
+        date: bookingDate,
+        startHour: parseInt(startHour),
+        duration: parseInt(duration),
+        booked: false,
         $or: [
-          { booked: false },
-          { stickyUntil:{ $lt: new Date() } }
+          { bookedBy: null },
+          { bookedBy: { $exists: false } }
         ]
       },
       {
@@ -984,241 +1336,223 @@ if (![1, 3, 6, 12].includes(Number(duration))) {
           bookedBy: userId,
           postId,
           bookedAt: new Date(),
-          stickyUntil,
-         bookingGroupId,
-          expiresAt: new Date(Date.now() + 15 * 60 * 1000) ,stickyUntil
+          stickyUntil: new Date(
+            Date.UTC(
+              bookingDate.getUTCFullYear(),
+              bookingDate.getUTCMonth(),
+              bookingDate.getUTCDate(),
+              endHour, 0, 0, 0
+            )
+          )
         }
       },
-      { new: true, upsert: true }
+      { new: true, session }
     );
 
-    // Notify all clients
-    io.emit("slotBooked", { 
-      startHour, 
-      endHour,
-      duration,
-      bookedBy: userId,
-      postId
-    });
-
-    res.status(200).json({
-      success: true,
-      slot: bookedSlot
-    });
-
-  } catch (error) {
-    console.error("Booking error:", error);
-    res.status(500).json({ error: "Booking failed" });
-  }
-};*/
-}
-
-
-
-{/*export const bookSlot = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const { startHour, endHour, duration, postId } = req.body;
-    const userId = req.user.id;
-    const now = new Date();
-    const bookingGroupId = new mongoose.Types.ObjectId();
-
-    // 1. Check for existing active bookings
-    const existingBooking = await Slot.findOne({
-      startHour,
-      endHour,
-      duration,
-      booked: true,
-      $or: [{ expiresAt: { $gt: now } }, { pinnedUntil: { $gt: now } }],
-    }).session(session);
-
-    if (existingBooking) {
-      await session.abortTransaction();
-      return res.status(409).json({
-        error: "Slot already booked",
-        conflict: existingBooking,
-      });
+    if (!existingSlot) {
+      throw {
+        status: 409,
+        message: "Slot no longer available"
+      };
     }
 
-    // Calculate the next occurrence of the booked slot time in UTC
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0); // Start of today in UTC
-    
-    // Create the scheduled start time in UTC
-    const scheduledStartUTC = new Date(today);
-    scheduledStartUTC.setUTCHours(startHour, 0, 0, 0);
-    
-    // If time has already passed today, schedule for tomorrow
-    if (scheduledStartUTC < now) {
-      scheduledStartUTC.setUTCDate(scheduledStartUTC.getUTCDate() + 1);
-    }
-
-    // Calculate end time in UTC
-    const scheduledEndUTC = new Date(scheduledStartUTC);
-    scheduledEndUTC.setUTCHours(scheduledStartUTC.getUTCHours() + duration);
-
-    // 2. Book the slot atomically
-    const bookedSlot = await Slot.findOneAndUpdate(
-      {
-        startHour,
-        endHour,
-        duration,
-        $or: [
-          { booked: false },
-          { expiresAt: { $lt: now } },
-          { pinnedUntil: { $lt: now } },
-        ],
-      },
+    // 3. Update the post with booking reference
+    const updatedPost = await Post.findByIdAndUpdate(
+      postId,
       {
         $set: {
-          booked: true,
-          bookedBy: userId,
-          postId,
-          bookedAt: now,
-          stickyUntil: scheduledEndUTC, // Use the calculated end time
-          bookingGroupId,
-          expiresAt: new Date(now.getTime() + 15 * 60 * 1000), // 15 min reservation window
-          scheduledStartUTC, // Store the calculated start time
-          scheduledEndUTC,   // Store the calculated end time
-        },
+          sticky: true,
+          stickyUntil: existingSlot.stickyUntil,
+          pinnedSlot: existingSlot._id
+        }
       },
       { new: true, session }
     );
 
-    if (!bookedSlot) {
-      await session.abortTransaction();
-      return res.status(409).json({ error: "Slot no longer available" });
-    }
+    // 4. Create a backup record
+    const bookingRecord = new BookingHistory({
+      slot: existingSlot._id,
+      post: postId,
+      user: userId,
+      bookedAt: new Date(),
+      duration,
+      startHour,
+      endHour,
+      date: bookingDate
+    });
+    await bookingRecord.save({ session });
 
     await session.commitTransaction();
 
-    // 3. Notify all clients
-    io.emit("slotBooked", {
+    // Emit real-time update
+    req.app.get('io')?.emit("slotBooked", {
+      date: bookingDate,
       startHour,
-      endHour,
-      duration,
-      bookedBy: userId,
-      postId,
-      scheduledStartUTC,
-      scheduledEndUTC
+      duration
     });
 
-    res.status(200).json({
-      success: true,
-      slot: bookedSlot,
+    res.json({ 
+      success: true, 
+      slot: existingSlot,
+      post: updatedPost 
     });
   } catch (error) {
     await session.abortTransaction();
-    console.error("Booking error:", error);
-    res.status(500).json({ error: "Booking failed" });
-  } finally {
-    session.endSession();
-  }
-};*/}
-// with date
-export const bookSlot = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const { startHour, endHour, duration, postId, selectedDate } = req.body;
-    const userId = req.user.id;
-    const now = new Date();
-    const bookingGroupId = new mongoose.Types.ObjectId();
-
-    // Convert selectedDate to Date object at start of day
-    const bookingDate = new Date(selectedDate);
-    bookingDate.setHours(0, 0, 0, 0);
-
-    // 1. Check for existing active bookings for this date/time
-    const existingBooking = await Slot.findOne({
-      date: bookingDate,
-      startHour,
-      endHour,
-      duration,
-      booked: true,
-      $or: [{ expiresAt: { $gt: now } }, { stickyUntil: { $gt: now } }],
-    }).session(session);
-
-    if (existingBooking) {
-      await session.abortTransaction();
-      return res.status(409).json({
-        error: "Slot already booked",
-        conflict: existingBooking,
-      });
-    }
-
-    // Calculate the exact start time in UTC
-    const scheduledStartUTC = new Date(bookingDate);
-    scheduledStartUTC.setHours(startHour, 0, 0, 0);
-    
-    // Calculate end time in UTC
-    const scheduledEndUTC = new Date(scheduledStartUTC);
-    scheduledEndUTC.setHours(scheduledStartUTC.getHours() + duration);
-
-    // 2. Book the slot atomically
-    const bookedSlot = await Slot.findOneAndUpdate(
-      {
-        date: bookingDate,
-        startHour,
-        endHour,
-        duration,
-        $or: [
-          { booked: false },
-          { expiresAt: { $lt: now } },
-          { stickyUntil: { $lt: now } },
-        ],
-      },
-      {
-        $set: {
-          booked: true,
-          bookedBy: userId,
-          postId,
-          bookedAt: now,
-          stickyUntil: scheduledEndUTC,
-          bookingGroupId,
-          expiresAt: new Date(now.getTime() + 15 * 60 * 1000), // 15 min reservation window
-          scheduledStartUTC,
-          scheduledEndUTC,
-        },
-      },
-      { new: true, session }
-    );
-
-    if (!bookedSlot) {
-      await session.abortTransaction();
-      return res.status(409).json({ error: "Slot no longer available" });
-    }
-
-    await session.commitTransaction();
-
-    // 3. Notify all clients
-    io.emit("slotBooked", {
-      date: bookingDate,
-      startHour,
-      endHour,
-      duration,
-      bookedBy: userId,
-      postId,
-      scheduledStartUTC,
-      scheduledEndUTC
+    console.error("Booking failed:", {
+      message: error.message,
+      status: error.status,
+      details: error.details,
+      userId: req.user?.id,
+      postId: req.body?.postId
     });
 
-    res.status(200).json({
-      success: true,
-      slot: bookedSlot,
+    console.error("Booking failed:", error);
+    const status = error.status || 500;
+    res.status(status).json({ 
+      error: error.message || "Booking failed",
+      details: error.details
     });
-  } catch (error) {
-    await session.abortTransaction();
-    console.error("Booking error:", error);
-    res.status(500).json({ error: "Booking failed" });
   } finally {
-    session.endSession();
+    await session.endSession();
   }
 };
 
+// recover booking 
+
+export const recoverBookings= async (req, res) => {
+  try {
+    // Find bookings where slot is missing but history exists
+    const orphanedBookings = await BookingHistory.aggregate([
+      {
+        $lookup: {
+          from: 'slots',
+          localField: 'slot',
+          foreignField: '_id',
+          as: 'slotData'
+        }
+      },
+      {
+        $match: {
+          slotData: { $size: 0 },
+          cancelled: { $ne: true }
+        }
+      }
+    ]);
+
+    const recovered = [];
+    
+    for (const booking of orphanedBookings) {
+      // Recreate the slot
+      const newSlot = await Slot.create({
+        date: booking.date,
+        startHour: booking.startHour,
+        endHour: booking.endHour,
+        duration: booking.duration,
+        type: `${booking.duration}-hour`,
+        booked: true,
+        bookedBy: booking.user,
+        postId: booking.post,
+        bookedAt: booking.bookedAt,
+        stickyUntil: new Date(
+          Date.UTC(
+            booking.date.getUTCFullYear(),
+            booking.date.getUTCMonth(),
+            booking.date.getUTCDate(),
+            booking.endHour, 0, 0, 0
+          )
+        )
+      });
+
+      // Update history record
+      await BookingHistory.findByIdAndUpdate(booking._id, {
+        $set: { slot: newSlot._id }
+      });
+
+      recovered.push(newSlot);
+    }
+
+    res.json({
+      success: true,
+      recoveredCount: recovered.length,
+      recoveredSlots: recovered
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Recovery failed",
+      details: error.message
+    });
+  }
+}
+
+// check booking
+
+export const checkBooking=async (req, res) => {
+  try {
+    const { postId } = req.query;
+    
+    if (!postId) {
+      return res.status(400).json({ error: "postId is required" });
+    }
+
+    // Validate postId format
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ error: "Invalid postId format" });
+    }
+
+    // Check if slot exists for this post
+    const slot = await Slot.findOne({ postId }).lean();
+    
+    // Check if booking history exists
+    const history = await BookingHistory.findOne({ post: postId }).lean();
+    
+    res.json({
+      success: true,
+      bookingMissing: !!history && !slot,
+      hasHistory: !!history,
+      hasSlot: !!slot,
+      slot,
+      history
+    });
+  } catch (error) {
+    console.error('Booking check error:', error);
+    res.status(500).json({ 
+      error: "Check failed",
+      details: error.message
+    });
+  }
+}
+
+// ownership 
+
+export const postOwnership= async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id; // Assuming you have authentication middleware
+
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ error: "Invalid post ID format" });
+    }
+
+    const post = await Post.findOne({
+      _id: postId,
+      author: userId
+    }).lean();
+
+    res.json({
+      success: true,
+      isOwner: !!post,
+      post
+    });
+  } catch (error) {
+    console.error('Ownership verification error:', error);
+    res.status(500).json({
+      error: "Failed to verify post ownership",
+      details: error.message
+    });
+  }
+}
+
+// new
 // Get all users
 export const getAllUsers = async (req, res) => {
   try {

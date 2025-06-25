@@ -1,7 +1,7 @@
 import express from 'express';
 
 import cors from 'cors'
-import { adminSingin, adminSingup, approvePost, fetchPendingPosts, RejectPost, updatePostStatus,getAvailableSlots,pinPost, bookSlot, getAllUsers, getAllPosts, getApprovedPosts } from '../controllers/adminController.js';
+import { adminSingin, adminSingup, approvePost, fetchPendingPosts, RejectPost, updatePostStatus,getAvailableSlots,pinPost, bookSlot, getAllUsers, getAllPosts, getApprovedPosts, checkAvailability, recoverBookings, checkBooking, postOwnership } from '../controllers/adminController.js';
 import { logout } from '../controllers/adminController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import { getJobApplications } from '../controllers/jobapplyController.js';
@@ -45,12 +45,16 @@ adminRouter.get("/pending", fetchPendingPosts)
 adminRouter.patch("/approve/:id",approvePost)
 adminRouter.patch("/reject/:id",RejectPost)
 adminRouter.post("/updatepoststatus", updatePostStatus)
-adminRouter.post("/logout",logout) 
+adminRouter.post("/logout",logout)  
 
 adminRouter.get("/available-slots", getAvailableSlots);
 adminRouter.post("/pinpost",pinPost)
+adminRouter.get("/check-availability",checkAvailability)
 adminRouter.post("/book-slot",authMiddleware,  bookSlot)
-   
+adminRouter.get("/recover-bookings", recoverBookings) 
+adminRouter.get("/check-booking",checkBooking)
+adminRouter.get("/verify-ownership/:postId",authMiddleware,postOwnership)
+
 adminRouter.get("/get-allusers",getAllUsers)
 adminRouter.get("/get-allposts",getAllPosts)
 adminRouter.get("/getJobApplications", getJobApplications)

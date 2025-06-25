@@ -20,3 +20,4 @@ export const syncTime = async () => {
     console.error('Time synchronization failed:', error);
   }
 };
+   
