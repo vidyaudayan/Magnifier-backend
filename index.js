@@ -15,7 +15,7 @@ import { cleanupInactiveUsers, unpinExpiredPosts,processStickyPosts, releaseExpi
 import {  generateSlotsForWeek } from './jobs/slotgenerate.js';
 import Slot from './Model/slotModel.js';
 import { initializeSlotSystem } from './jobs/slotgenerate.js';
-import Post from './Model/postModel.js';
+ 
 // One-time migration
 export const migrateToDatedSlots = async () => {
   try {
@@ -64,7 +64,7 @@ export const migrateToDatedSlots = async () => {
     throw error;
   }
 };   
- import Payment from './Model/paymentModel.js';
+
 import dotenv from "dotenv";
   
 dotenv.config();
@@ -72,39 +72,21 @@ console.log(process.env.GOOGLE_APPLICATION_CREDENTIALS);
 
 syncTime();
 
-const app = express()
+const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*", // Allow all origins; modify for security
-    methods: ["GET", "POST"],
-  },
-})
-app.use(bodyParser.json())
-// server.js
-app.use((req, res, next) => {
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; " +
-    "script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ 'unsafe-inline'; " +
-    "frame-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; " +
-    "style-src 'self' 'unsafe-inline'; " +
-    "connect-src 'self' https://identitytoolkit.googleapis.com/ https://www.google.com/recaptcha/"
-  );
-  next();
-});
-// Put this right after your other middleware setups but before routes
+const PORT = process.env.PORT || 3000; // Use PORT from env or default to 3000
+
+// CORS Configuration
 const allowedOrigins = [
   'https://magnifyweb.netlify.app', 
   'http://localhost:5173',
   'http://localhost:5174',
   'https://magnifieradmin.netlify.app',
-  'https://magnifier-platform.com' // Remove trailing slash
+  'https://magnifier-platform.com'
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -117,83 +99,76 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+// Socket.io Configuration
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
+});
 
+// Middleware
+app.use(bodyParser.json());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(cors(corsOptions));
 
-//app.options('*', cors(corsOptions));
+// Security Headers
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ 'unsafe-inline'; " +
+    "frame-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    `connect-src 'self' https://identitytoolkit.googleapis.com/ https://www.google.com/recaptcha/ ws://localhost:${PORT} wss://magnifier-backend.onrender.com`
+  );
+  next();
+});
 
-connectDb() 
+// Routes
+app.use('/api/v1/user', userRouter);
+app.use('/api/v1/post', postRouter);
+app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/dashboard', dashboardRouter);
+app.get('/', (req, res) => res.send('Hello World!'));
 
+// Socket.io Events
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+  socket.on("slotBooked", () => io.emit("updateSlots"));
+  socket.on("disconnect", () => console.log("User disconnected:", socket.id));
+});
 
+// Database and Server Initialization
 async function startServer() {
   try {
-    // Initialize database connection first
+    await connectDb();
     await mongoose.connect(process.env.DB_URL);
-    
-    // Then initialize slot system
-   // await initializeSlotSystem();
-    
-    // Start your server
-    app.listen(process.env.PORT, () => {
-      console.log(`Server running on port ${process.env.PORT}`);
+    await initializeSlotSystem();
+    await migrateToDatedSlots();
+
+    // Start the server
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Socket.io available on ws://localhost:${PORT}`);
     });
+
+    // Background jobs
+    cleanupInactiveUsers();
+    releaseExpiredSlots();
+    unpinExpiredPosts();
+    setInterval(unpinExpiredPosts, 30 * 60 * 1000);
+    setInterval(processStickyPosts, 60 * 1000);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
 }
 
-//startServer();
-await initializeSlotSystem();
+startServer();
 
-
-
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
-app.use(cookieParser())
-app.use(cors(corsOptions));
-app.use('/api/v1/user',userRouter)
-app.use('/api/v1/post',postRouter)
-app.use('/api/v1/admin',adminRouter)
-app.use('/api/v1/dashboard',dashboardRouter)
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
-
-
-
-/*const port = process.env.PORT;
-io.on("connection", (socket) => {
-  console.log("A user connected:", socket.id);
-
-  socket.on("slotBooked", () => {
-    io.emit("updateSlots");  // Broadcast update event to all clients
-});
-
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-  });
-});   */ 
-   
-export { io, server }; 
-  
-      
-    
-await migrateToDatedSlots()    
-cleanupInactiveUsers();
-releaseExpiredSlots()
-   
-//await generateSlotsForWeek()
-//resetSlotsDaily()
-
-mongoose.connection.once("open", () => {
-  console.log("✅ Connected to MongoDB");
-  unpinExpiredPosts(); // Run once on startup
-  setInterval(unpinExpiredPosts, 30 * 60 * 1000); // Run every 30 minutes
-});
-
-setInterval(processStickyPosts, 60 * 1000); // Runs every 1 minute
-
-    
-/*server.listen(port, () => {
-  console.log(` Listening on port ${port}`);
-}); */    
+export { io, server };
