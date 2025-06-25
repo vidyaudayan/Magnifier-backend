@@ -161,7 +161,7 @@ app.get('/', (req, res) => {
 
 
 
-const port = process.env.PORT;
+/*const port = process.env.PORT;
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
@@ -172,7 +172,7 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });
-});    
+});   */ 
    
 export { io, server }; 
   
@@ -194,6 +194,6 @@ mongoose.connection.once("open", () => {
 setInterval(processStickyPosts, 60 * 1000); // Runs every 1 minute
 
     
-server.listen(port, () => {
+/*server.listen(port, () => {
   console.log(` Listening on port ${port}`);
-});     
+}); */    
